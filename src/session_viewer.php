@@ -3,9 +3,9 @@
 /**
  * Session Viewer - Mini Utils
  *
- * @version 1.0
+ * @version 1.1
  * @author Creative Pulse
- * @copyright Creative Pulse 2013
+ * @copyright Creative Pulse 2013-2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
  * @link http://www.creativepulse.gr
  */
@@ -14,7 +14,7 @@
 session_start();
 
 if (!empty($_POST['clear_data'])) {
-    $_SESSION = array();
+	$_SESSION = array();
 }
 
 ?><!DOCTYPE html>
@@ -24,19 +24,19 @@ if (!empty($_POST['clear_data'])) {
 <meta charset="utf-8">
 <style type="text/css">
 body {
-    font-family: Verdana, Arial, Helvetica, sans-serif;
-    font-size: 14px;
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 14px;
 }
 h1 {
-    font-size: 1em;
+	font-size: 1em;
 }
 .empty {
-    display: inline;
-    background-color: #777;
-    color: #fff;
-    border-radius: 4px;
-    padding: 1px 7px 2px 7px;
-    line-height: 3em;
+	display: inline;
+	background-color: #777;
+	color: #fff;
+	border-radius: 4px;
+	padding: 1px 7px 2px 7px;
+	line-height: 3em;
 }
 </style>
 </head>
@@ -48,12 +48,12 @@ h1 {
 <?php
 
 if (empty($_SESSION)) {
-    echo
+	echo
 '<p class="empty">Session is empty</p>
 ';
 }
 else {
-    echo
+	echo
 '<pre>' . htmlspecialchars(var_export($_SESSION, true)) . '</pre>
 
 <form name="frm" method="post" action="">
@@ -66,4 +66,3 @@ else {
 </body>
 
 </html>
-

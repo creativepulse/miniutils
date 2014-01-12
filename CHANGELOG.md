@@ -1,6 +1,15 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-01-11 - v1.7 ####
+* New: Added script `exif_analyzer.php` v1.0
+* Modification: Modified `file_stats.php` v1.1 to conform to new coding standards
+* Modification: Modified `file_in_files.php` v1.1 to conform to new coding standards
+* Modification: Modified `mysql_cli.php` v1.2 to conform to new coding standards
+* Modification: Modified `session_viewer.php` v1.1 to conform to new coding standards
+* Modification: Modified `text_editor.php` v1.1 to conform to new coding standards
+* Modification: Modified `text_viewer.php` v1.1 to conform to new coding standards
+
 #### 2013-12-21 - v1.6 ####
 * Modification: Added support for the MySQLi driver in the script `mysql_cli.php` v1.1. From this version on, the script will use that driver as the default.
 

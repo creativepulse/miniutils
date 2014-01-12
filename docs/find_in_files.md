@@ -34,7 +34,7 @@ When you write your search terms in the script instead of the URL, the way to pe
 
 The results from this script are outputted to the page if the script runs for the web, or to stdout if it runs from a terminal.
 
-In cases that results are too many for the web page, you can use the configuration variable `$output_filename` to make the script write them in a text file. You may optionally use the `$output_gzip` configuration variable gzip the output text file.
+In cases that results are too many for the web page, you can use the configuration variable `$output_filename` to make the script write them in a text file. You may optionally enable the configuration variable `$output_gzip` to compress the output file.
 
 At the end of the search process, the script shows you statistics on the results. You may disable them by modifying the `$show_statistics` configuration variable.
 
@@ -79,7 +79,7 @@ Default value: \<empty\>
 
 When this variable is empty, the script searches in all the sub-directories except those mentioned in `$opt_out_dirs`. If this variable is set, the script searches only in the directories specified.
 
-Example 1: Add opt-in directory for Wordpress content files  
+Example 1: Add opt-in directory for WordPress content files  
 `$proc->opt_in_dirs[] = 'wp-content';`
 
 Example 2: Add opt-in directories for Joomla modules, front-end components, back-end components, plugins  

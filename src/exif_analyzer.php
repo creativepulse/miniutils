@@ -1,17 +1,21 @@
 <?php
 
 /**
- * Find in files - Mini Utils
+ * EXIF Analyzer - Mini Utils
  *
- * @version 1.1
+ * @version 1.0
  * @author Creative Pulse
- * @copyright Creative Pulse 2013-2014
+ * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
  * @link http://www.creativepulse.gr
  */
 
 
-class CpMiniUtils_FindInFiles {
+if (!function_exists('exif_read_data')) {
+	die('Error: The required function exif_read_data() is not available in your system, probably because you need to have the EXIF library installed.');
+}
+
+class CpMiniUtils_ExifAnalyzer {
 
 	// configurable variables
 
@@ -19,44 +23,34 @@ class CpMiniUtils_FindInFiles {
 	public $msg_show_alerts = true;
 	public $msg_show_errors = true;
 
+	public $process_links = true;
+
 	public $opt_in_dirs = array();
 	public $opt_out_dirs = array();
 
-	//public $extension_list = 'html,htm,php,css,js,json,xml,ini,txt,inc,sql,log,csv,svg,xsl,pdf,php3'; // full list
-	//public $extension_list = 'html,htm,php,css,js,json,xml,ini,txt,inc'; // popular extensions
-	public $extension_list = 'html,htm,php,css,js,json,xml,ini,txt,inc';
-
-	public $search_text = array();
-	public $search_regex = array();
-
-	public $max_file_size = 300000;
-
-	public $accept_links = true;
-
 	public $time_limit = 0;
 
-	public $output_enabled = true;
 	public $output_filename = '';
 	public $output_gzip = false;
 
+	public $show_analysis = true;
+	public $infection_scan = true;
 	public $show_statistics = true;
 
 
 	// result variables
 
-	public $stat_dirs = 0;
-	public $stat_files = 0;
-	public $stat_files_searchable = 0;
-	public $stat_matches = 0;
+	public $stat_dirs_processed;
+	public $stat_files_processed;
+	public $stat_files_infected;
 
 
 	// system variables - do not edit
 
+	public $fp;
 	public $basedir;
 	public $basedir_len;
-
-	public $fp;
-	public $output_filename_fullpath = '';
+	private $output_filename_fullpath = '';
 
 
 	function __construct() {
@@ -86,7 +80,7 @@ class CpMiniUtils_FindInFiles {
 	public function validate_directory($directory, $ensure_exists) {
 		$directory = preg_replace('~/{2,}~', '/', str_replace('\\', '/', trim($directory)));
 		if ($directory != '') {
-			if (strpos($directory, '..') !== false) {
+			if (strpos($directory, '..') !== false || strpos($directory, "\0") !== false) {
 				throw new Exception('Invalid directory: ' . $directory);
 			}
 
@@ -144,40 +138,47 @@ class CpMiniUtils_FindInFiles {
 		}
 	}
 
-	public function process_dir($dir) {
-		if ($dp = @opendir($dir)) {
-			$files = array();
-			$sub_dirs = array();
+	public function report($msg) {
+		if ($this->output_filename == '') {
+			$this->msg($msg);
+		}
+		else if ($this->output_gzip) {
+			gzwrite($this->fp, $msg . "\n");
+		}
+		else {
+			fwrite($this->fp, $msg . "\n");
+		}
+	}
 
+	public function process_dir($dir) {
+		$this->stat_dirs_processed++;
+
+		$dirs = array();
+		$files = array();
+		if ($dp = @opendir($dir)) {
 			while (false !== ($file = readdir($dp))) {
 				if ($file == '.' || $file == '..') {
 					continue;
 				}
 
 				$filename = $dir . '/' . $file;
-				if ($filename == __FILE__ || $filename == $this->output_filename_fullpath) {
+
+				if (!$this->process_links && is_link($filename)) {
 					continue;
 				}
 
-				if (!$this->accept_links && is_link($filename)) {
-					continue;
-				}
-
-				if (is_file($filename)) {
-					$this->stat_files++;
-
-					if (preg_match('~\.([^.]+)$~', $file, $m) && strlen($file) > strlen($m[0]) && in_array(strtolower($m[1]), $this->extensions)) {
-						$files[] = $filename;
-					}
-				}
-				else if (is_dir($filename)) {
+				if (is_dir($filename)) {
 					if (in_array($filename, $this->opt_out_dirs)) {
 						$this->msg_alert('Ignoring directory: ' . $filename);
 						continue;
 					}
 
-					$this->stat_dirs++;
-					$sub_dirs[] = $filename;
+					$dirs[] = $filename;
+				}
+				else if (is_file($filename)) {
+					if (preg_match('/(\.jpg|\.jpeg|\.tif|\.tiff)$/i', $file)) {
+						$files[] = $filename;
+					}
 				}
 				else {
 					$this->msg_alert('Ignoring non-regular file: ' . $filename);
@@ -185,54 +186,45 @@ class CpMiniUtils_FindInFiles {
 			}
 			closedir($dp);
 
+
 			sort($files);
 			foreach ($files as $file) {
-				$size = filesize($file);
-				if ($size > $this->max_file_size) {
-					$this->msg_alert('Ignoring oversized file: ' . $file);
-					continue;
+				$this->stat_files_processed++;
+
+				if ($this->show_analysis || $this->infection_scan) {
+					$data = var_export(exif_read_data($file), true);
+					$file = substr($file, $this->basedir_len);
 				}
 
-				$this->stat_files_searchable++;
-
-				$found_it = false;
-				$content = file_get_contents($file);
-
-				foreach ($this->search_text as $search) {
-					if (stripos($content, $search) !== false) {
-						$found_it = true;
-						break;
-					}
+				$infected = false;
+				if ($this->infection_scan && preg_match('/eval|base64/i', $data)) {
+					$infected = true;
 				}
 
-				if (!$found_it) {
-					foreach ($this->search_regex as $search) {
-						if (preg_match($search, $content)) {
-							$found_it = true;
-							break;
-						}
-					}
-				}
+				if ($this->show_analysis || $infected) {
+					$this->report($file);
+					$this->report(str_repeat('=', strlen($file)));
 
-				if ($found_it) {
-					$this->stat_matches++;
-
-					if ($this->output_enabled) {
-						if ($this->output_filename == '') {
-							$this->msg($file);
-						}
-						else if ($this->output_gzip) {
-							gzwrite($this->fp, substr($file, $this->basedir_len) . "\r\n");
-						}
-						else {
-							fwrite($this->fp, substr($file, $this->basedir_len) . "\r\n");
-						}
+					if ($this->show_analysis) {
+						$this->report($data);
 					}
+
+					if ($this->show_analysis && $infected) {
+						$this->report('');
+					}
+
+					if ($infected) {
+						$this->report('Infection traces found. File seems to be corrupted.');
+						$this->stat_files_infected++;
+					}
+
+					$this->report("\n");
 				}
 			}
 
-			sort($sub_dirs);
-			foreach ($sub_dirs as $sub_dir) {
+
+			sort($dirs);
+			foreach ($dirs as $sub_dir) {
 				$this->process_dir($sub_dir);
 			}
 		}
@@ -244,22 +236,9 @@ class CpMiniUtils_FindInFiles {
 	public function run() {
 		$this->validate_directories();
 
-		$this->extensions = explode(',', str_replace(' ', '', strtolower($this->extension_list)));
-		if (empty($this->extensions)) {
-			throw new Exception('File extensions are not set');
-		}
-
-		if (isset($_GET['q']) && $_GET['q'] != '' && !in_array($_GET['q'], $this->search_text)) {
-			$this->search_text[] = $q;
-		}
-
-		if (empty($this->search_text) && empty($this->search_regex)) {
-			throw new Exception('Search terms are not set');
-		}
-
 		set_time_limit($this->time_limit);
 
-		if ($this->output_enabled && $this->output_filename != '') {
+		if ($this->output_filename != '') {
 			$this->output_filename_fullpath = $this->basedir . '/' . $this->output_filename;
 
 			if ($this->output_gzip) {
@@ -270,14 +249,13 @@ class CpMiniUtils_FindInFiles {
 			}
 
 			if (!$this->fp) {
-				throw new Exception('Error on opening output file: ' . $this->output_filename_fullpath);
+				throw new CpSimpleUtils_ListFiles_Exception('Error on opening output file: ' . $this->output_filename_fullpath);
 			}
 		}
 
-		$this->stat_dirs = 0;
-		$this->stat_files = 0;
-		$this->stat_files_searchable = 0;
-		$this->stat_matches = 0;
+		$this->stat_dirs_processed = 0;
+		$this->stat_files_processed = 0;
+		$this->stat_files_infected = 0;
 
 		if (empty($this->opt_in_dirs)) {
 			$this->process_dir($this->basedir);
@@ -288,7 +266,7 @@ class CpMiniUtils_FindInFiles {
 			}
 		}
 
-		if ($this->output_enabled && $this->output_filename != '') {
+		if ($this->output_filename != '') {
 			if ($this->output_gzip) {
 				gzclose($this->fp);
 			}
@@ -297,10 +275,10 @@ class CpMiniUtils_FindInFiles {
 			}
 		}
 	}
+
 }
 
-
-$proc = new CpMiniUtils_FindInFiles();
+$proc = new CpMiniUtils_ExifAnalyzer();
 
 // Example opt-in for Wordpress content files
 //$proc->opt_in_dirs[] = 'wp-content';
@@ -311,30 +289,17 @@ $proc = new CpMiniUtils_FindInFiles();
 // Example opt-out for a Git database
 //$proc->opt_out_dirs[] = '.git';
 
-// Example output in a regular text file
-//$proc->output_filename = 'output.txt';
-
-// Example output in a Gnu zipped (gzip) text file
-//$proc->output_filename = 'output.txt.gz';
-//$proc->output_gzip = true;
-
-// Example search for plain text - You can add more lines for multiple queries
-//$proc->search_text[] = 'abc';
-
-// Example search for a regular expression (regex) - You can add more lines for multiple queries - Read http://www.php.net/preg_match for more info on the regex notation
-//$proc->search_regex[] = '/abc/i';
-
 try {
 	$proc->run();
 
 	if ($proc->show_statistics) {
-		if ($proc->output_enabled && $proc->stat_matches > 0) {
-			// show divider
-			$proc->msg("---");
+		$infection_msg = '';
+
+		if ($proc->infection_scan) {
+			$infection_msg = " Found {$proc->stat_files_infected} files that are probably infected.";
 		}
 
-		$proc->msg("Search statistics for: " . implode(', ', array_merge($proc->search_text, $proc->search_regex)));
-		$proc->msg("Found {$proc->stat_matches} matches in {$proc->stat_files_searchable} searchable files. Search performed in {$proc->stat_dirs} sub-directories and {$proc->stat_files} files.");
+		$proc->msg("Processed {$proc->stat_dirs_processed} directories and {$proc->stat_files_processed} files." . $infection_msg);
 	}
 }
 catch (Exception $e) {

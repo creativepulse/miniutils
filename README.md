@@ -5,6 +5,9 @@ Mini Utils is a collection of small but very useful programs for webmasters.
 
 Mini Utils consist of:
 
+#### EXIF Analyzer ####
+A single file script that analyzes the EXIF meta data of JPEG and TIFF image files. Features an infection scanner that detects injected malware code.
+
 #### File Stats ####
 A single file script that shows statistics on files and directories, such as disk usage stats.
 
