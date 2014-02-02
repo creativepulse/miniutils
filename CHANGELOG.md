@@ -1,6 +1,9 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-02-01 - v1.8 ####
+* New: Added script `file_manager.php` v1.0
+
 #### 2014-01-11 - v1.7 ####
 * New: Added script `exif_analyzer.php` v1.0
 * Modification: Modified `file_stats.php` v1.1 to conform to new coding standards
