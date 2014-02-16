@@ -1,6 +1,9 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-02-15 - v1.9 ####
+* Upgrade: Upgraded script `file_manager.php` v1.1 to support more columns when browsing files
+
 #### 2014-02-01 - v1.8 ####
 * New: Added script `file_manager.php` v1.0
 

@@ -3,7 +3,7 @@
 /**
  * File Manager - Mini Utils
  *
- * @version 1.0
+ * @version 1.1
  * @author Creative Pulse
  * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
@@ -29,10 +29,32 @@ if (get_magic_quotes_gpc()) {
 
 class CpMiniUtils_FileManager {
 
-	// configurable variables
+	// -------------------------- //
+	//   configurable variables   //
+	// -------------------------- //
 
-	public $text_file_extensions = 'txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat';
+	// available options: size,sizehuman,sizebytes,ctime,ctimets,mtime,mtimets,atime,atimets,owner,ownernum,group,groupnum,perm,permstr,permnum
+	// default: sizehuman,mtime,perm
+	public $columns = 'sizehuman,mtime,perm';
+
+	// default: txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess
+	public $text_file_extensions = 'txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess';
+
+	// default: jpg,jpeg,png,gif,bmp
 	public $image_file_extensions = 'jpg,jpeg,png,gif,bmp';
+
+	public $date_time_zone = '';
+
+	// default: H:i
+	public $date_format_same_day = 'H:i';
+
+	// default: j M, H:i
+	public $date_format_same_year = 'j M, H:i';
+
+	// default: j M Y, H:i
+	public $date_format_global = 'j M Y, H:i';
+
+	// -------------------------- //
 
 
 	// system variables - do not edit
@@ -102,54 +124,6 @@ class CpMiniUtils_FileManager {
 		$this->body .=
 '<div class="breadcrumbs_header">Path ' . $html . '</div>
 ';
-	}
-
-	public function perms_to_string($filename) {
-		$perms = fileperms($filename);
-
-		if (($perms & 0xC000) == 0xC000) {
-			$info = 's'; // Socket
-		}
-		else if (($perms & 0xA000) == 0xA000) {
-			$info = 'l'; // Symbolic Link
-		}
-		else if (($perms & 0x8000) == 0x8000) {
-			$info = '-'; // Regular
-		}
-		else if (($perms & 0x6000) == 0x6000) {
-			$info = 'b'; // Block special
-		}
-		else if (($perms & 0x4000) == 0x4000) {
-			$info = 'd'; // Directory
-		}
-		else if (($perms & 0x2000) == 0x2000) {
-			$info = 'c'; // Character special
-		}
-		else if (($perms & 0x1000) == 0x1000) {
-			$info = 'p'; // FIFO pipe
-		}
-		else {
-			$info = 'u'; // Unknown
-		}
-
-		// Owner
-		$info .= (($perms & 0x0100) ? 'r' : '-');
-		$info .= (($perms & 0x0080) ? 'w' : '-');
-		$info .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x' ) : (($perms & 0x0800) ? 'S' : '-'));
-
-		// Group
-		$info .= (($perms & 0x0020) ? 'r' : '-');
-		$info .= (($perms & 0x0010) ? 'w' : '-');
-		$info .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x' ) : (($perms & 0x0400) ? 'S' : '-'));
-
-		// World
-		$info .= (($perms & 0x0004) ? 'r' : '-');
-		$info .= (($perms & 0x0002) ? 'w' : '-');
-		$info .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x' ) : (($perms & 0x0200) ? 'T' : '-'));
-
-		$num_info = substr(sprintf('%o', $perms), -4);
-
-		return $info . ' (' . $num_info . ')';
 	}
 
 	public function show_file() {
@@ -261,6 +235,228 @@ class CpMiniUtils_FileManager {
 		}
 	}
 
+	private function list_files_attr_date($dt) {
+		static $current_day = null;
+		static $current_year = null;
+
+		if ($current_day === null) {
+			$now = time();
+			$current_day = date('Y-m-d', $now);
+			$current_year = date('Y', $now);
+		}
+
+		if (date('Y-m-d', $dt) == $current_day) {
+			return date($this->date_format_same_day, $dt);
+		}
+		else if (date('Y', $dt) == $current_year) {
+			return date($this->date_format_same_year, $dt);
+		}
+		else {
+			return date($this->date_format_global, $dt);
+		}
+	}
+
+	private function list_files_attr($filename, $column_type, $regular_file) {
+		$perms = 0;
+		$perms_str = '';
+
+		if ($column_type == 'perm' || $column_type == 'permstr' || $column_type == 'permnum') {
+			$perms = fileperms($filename);
+
+			if ($column_type == 'perm' || $column_type == 'permstr') {
+				if (($perms & 0xC000) == 0xC000) {
+					$perms_str = 's'; // Socket
+				}
+				else if (($perms & 0xA000) == 0xA000) {
+					$perms_str = 'l'; // Symbolic Link
+				}
+				else if (($perms & 0x8000) == 0x8000) {
+					$perms_str = '-'; // Regular
+				}
+				else if (($perms & 0x6000) == 0x6000) {
+					$perms_str = 'b'; // Block special
+				}
+				else if (($perms & 0x4000) == 0x4000) {
+					$perms_str = 'd'; // Directory
+				}
+				else if (($perms & 0x2000) == 0x2000) {
+					$perms_str = 'c'; // Character special
+				}
+				else if (($perms & 0x1000) == 0x1000) {
+					$perms_str = 'p'; // FIFO pipe
+				}
+				else {
+					$perms_str = 'u'; // Unknown
+				}
+
+				// Owner
+				$perms_str .= (($perms & 0x0100) ? 'r' : '-');
+				$perms_str .= (($perms & 0x0080) ? 'w' : '-');
+				$perms_str .= (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x' ) : (($perms & 0x0800) ? 'S' : '-'));
+
+				// Group
+				$perms_str .= (($perms & 0x0020) ? 'r' : '-');
+				$perms_str .= (($perms & 0x0010) ? 'w' : '-');
+				$perms_str .= (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x' ) : (($perms & 0x0400) ? 'S' : '-'));
+
+				// World
+				$perms_str .= (($perms & 0x0004) ? 'r' : '-');
+				$perms_str .= (($perms & 0x0002) ? 'w' : '-');
+				$perms_str .= (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x' ) : (($perms & 0x0200) ? 'T' : '-'));
+			}
+		}
+
+
+		$filesize = 0;
+		$filesize_str = '';
+
+		if ($regular_file && ($column_type == 'size' || $column_type == 'sizehuman' || $column_type == 'sizebytes')) {
+			$filesize = filesize($filename);
+
+			if ($column_type == 'size' || $column_type == 'sizehuman') {
+				$size = $filesize;
+				if ($size <= 1024) {
+					$filesize_str = number_format($size / 1024, 2, '.', ',') . ' KiB';
+				}
+				else {
+					$size /= 1024;
+					if ($size <= 1024) {
+						$filesize_str = number_format($size, 0, '.', ',') . ' KiB';
+					}
+					else {
+						$size /= 1024;
+						if ($size <= 1024) {
+							$filesize_str = number_format($size, 0, '.', ',') . ' MiB';
+						}
+						else {
+							$size /= 1024;
+							if ($size <= 1024) {
+								$filesize_str = number_format($size, 0, '.', ',') . ' GiB';
+							}
+							else {
+								$size /= 1024;
+								$filesize_str = number_format($size, 0, '.', ',') . ' TiB';
+							}
+						}
+					}
+				}
+			}
+		}
+
+
+		$result = '';
+		switch ($column_type) {
+			case 'size':
+				if ($regular_file) {
+					$result = '<div class="sz">' . $filesize_str . ' [' . number_format(filesize($filename)) . ']</div>';
+				}
+				else {
+					$result = '&nbsp;';
+				}
+				break;
+
+			case 'sizehuman':
+				if ($regular_file) {
+					$result = '<div class="sz">' . $filesize_str . '</div>';
+				}
+				else {
+					$result = '&nbsp;';
+				}
+				break;
+
+			case 'sizebytes':
+				if ($regular_file) {
+					$result = '<div class="sz">' . number_format(filesize($filename)) . '</div>';
+				}
+				else {
+					$result = '&nbsp;';
+				}
+				break;
+
+			case 'perm':
+				$result = $perms_str . ' (' . substr(sprintf('%o', $perms), -4) . ')';
+				break;
+
+			case 'permstr':
+				$result = $perms_str;
+				break;
+
+			case 'permnum':
+				$result = substr(sprintf('%o', $perms), -4);
+				break;
+
+			case 'ctime':
+				$result = $this->list_files_attr_date(filectime($filename));
+				break;
+
+			case 'ctimets':
+				$result = filectime($filename);
+				break;
+
+			case 'mtime':
+				$result = $this->list_files_attr_date(filemtime($filename));
+				break;
+
+			case 'mtimets':
+				$result = filemtime($filename);
+				break;
+
+			case 'atime':
+				$result = $this->list_files_attr_date(fileatime($filename));
+				break;
+
+			case 'atimets':
+				$result = fileatime($filename);
+				break;
+
+			case 'owner':
+				$result = @fileowner($filename);
+				if ($result === false) {
+					$result = '?';
+				}
+				else if (function_exists('posix_getpwuid')) {
+					$data = posix_getpwuid($result);
+					$result = htmlspecialchars($data['name']);
+				}
+				else {
+					$result = '&lt;N/A&gt; (' . $result . ')';
+				}
+				break;
+
+			case 'ownernum':
+				$result = @fileowner($filename);
+				if ($result === false) {
+					$result = '?';
+				}
+				break;
+
+			case 'group':
+				$result = @filegroup($filename);
+				if ($result === false) {
+					$result = '?';
+				}
+				else if (function_exists('posix_getgrgid')) {
+					$data = posix_getgrgid($result);
+					$result = htmlspecialchars($data['name']);
+				}
+				else {
+					$result = '&lt;N/A&gt; (' . $result . ')';
+				}
+				break;
+
+			case 'groupnum':
+				$result = @filegroup($filename);
+				if ($result === false) {
+					$result = '?';
+				}
+				break;
+
+			default:
+				$result = '?';
+		}
+		return $result;
+	}
+
 	public function list_files() {
 		$this->show_breadcrumbs_header();
 
@@ -301,17 +497,87 @@ class CpMiniUtils_FileManager {
 ';
 			}
 			else {
+				$columns = explode(',', $this->columns);
+
+				$column_names = array(
+					'size' => 'Size',
+					'sizehuman' => 'Size',
+					'sizebytes' => 'Size',
+					'perm' => 'Permissions',
+					'permstr' => 'Permissions',
+					'permnum' => 'Permissions',
+					'ctime' => 'Created',
+					'ctimets' => 'Created',
+					'mtime' => 'Modified',
+					'mtimets' => 'Modified',
+					'atime' => 'Accessed',
+					'atimets' => 'Accessed',
+					'owner' => 'Owner',
+					'ownernum' => 'Owner',
+					'group' => 'Group',
+					'groupnum' => 'Group',
+				);
+
+				// check if all columns are known
+				foreach ($columns as $column_type) {
+					$column_type = trim($column_type);
+					if ($column_type != '' && !isset($column_names[$column_type])) {
+						$this->body .=
+'<div class="notice">Warning: Columns configuration <br/>contains unknown values</div>
+';
+						break;
+					}
+				}
+
 				$this->body .=
 '<table align="center" class="list">
 	<tr>
 		<th>&nbsp;</th>
 		<th>File name</th>
-		<th>Size</th>
-		<th>Permissions</th>
-	</tr>
+';
+
+				$last_column_name = '';
+				foreach ($columns as $column_type) {
+					$column_type = trim($column_type);
+					if ($column_type == '') {
+						continue;
+					}
+
+					$column_name = @$column_names[$column_type];
+					if ($column_name === null) {
+						continue;
+					}
+
+					if ($last_column_name == $column_name) {
+						$column_name = '&nbsp;';
+					}
+					else {
+						$last_column_name = $column_name;
+					}
+
+					$this->body .=
+'		<th>' . $column_name . '</th>
+';
+				}
+
+
+				$this->body .=
+'	</tr>
 ';
 
 				$link_fmt = '<a href="' . basename(__FILE__) . '?path=%s">%s</a>';
+
+				if ($this->date_format_same_day == '') {
+					$this->date_format_same_day = 'Y-m-d H:i:s';
+				}
+
+				if ($this->date_format_same_year == '') {
+					$this->date_format_same_year = 'Y-m-d H:i:s';
+				}
+
+				if ($this->date_format_global == '') {
+					$this->date_format_global = 'Y-m-d H:i:s';
+				}
 
 				foreach ($dirs as $file) {
 					$filename = $path . $file;
@@ -319,9 +585,16 @@ class CpMiniUtils_FileManager {
 '	<tr class="dir">
 		<td>[Dir]</td>
 		<td>' . sprintf($link_fmt, urlencode($filename), htmlspecialchars($file)) . '</td>
-		<td>&nbsp;</td>
-		<td>' . $this->perms_to_string($filename) . '</td>
-	</tr>
+';
+
+					foreach ($columns as $column_type) {
+						$this->body .=
+'		<td>' . $this->list_files_attr($filename, $column_type, false) . '</td>
+';
+					}
+
+					$this->body .=
+'	</tr>
 ';
 				}
 
@@ -331,9 +604,17 @@ class CpMiniUtils_FileManager {
 '	<tr class="file">
 		<td>[File]</td>
 		<td>' . sprintf($link_fmt, urlencode($filename), htmlspecialchars($file)) . '</td>
-		<td style="text-align:right">' . number_format(filesize($filename)) . '</td>
-		<td>' . $this->perms_to_string($filename) . '</td>
-	</tr>
+';
+
+					foreach ($columns as $column_type) {
+						$this->body .=
+'		<td>' . $this->list_files_attr($filename, $column_type, true) . '</td>
+';
+					}
+
+
+					$this->body .=
+'	</tr>
 ';
 				}
 
@@ -343,9 +624,17 @@ class CpMiniUtils_FileManager {
 '	<tr class="special">
 		<td>[Special]</td>
 		<td>' . htmlspecialchars($file) . '</td>
-		<td>&nbsp;</td>
-		<td>' . $this->perms_to_string($filename) . '</td>
-	</tr>
+';
+
+					foreach ($columns as $column_type) {
+						$this->body .=
+'		<td>' . $this->list_files_attr($filename, $column_type, false) . '</td>
+';
+					}
+
+
+					$this->body .=
+'	</tr>
 ';
 				}
 
@@ -363,6 +652,10 @@ class CpMiniUtils_FileManager {
 
 	public function run() {
 		clearstatcache();
+
+		if (!empty($this->date_time_zone)) {
+			date_default_timezone_set($this->date_time_zone);
+		}
 
 		$this->path = (string) @$_GET['path'];
 		if ($this->path == '') {
@@ -428,7 +721,7 @@ a:hover {
 .list th {
 	text-align: left;
 	font-size: 0.9em;
-	padding: 20px 0 5px 0;
+	padding: 20px 10px 5px 10px;
 }
 .list {
 	border-collapse: collapse;
@@ -460,6 +753,9 @@ a:hover {
 .list tr.file:hover,
 .list tr.special:hover {
 	background-color: #fff;
+}
+.sz {
+	text-align: right;
 }
 .show_image {
 	text-align: center;
