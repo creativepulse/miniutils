@@ -1,6 +1,9 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-03-02 - v1.10 ####
+* Upgrade: Upgraded script `file_manager.php` v1.2. Added ability to accept translations and to allow users sorting by columns when browsing files.
+
 #### 2014-02-15 - v1.9 ####
 * Upgrade: Upgraded script `file_manager.php` v1.1 to support more columns when browsing files
 

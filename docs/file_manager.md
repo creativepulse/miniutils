@@ -8,14 +8,23 @@ Once uploaded access it from your web-browser.
 You can use this program to browse files in your web server and edit text files.
 
 
-## 1. Configuration variables
+## 1. Usage
+
+Upload the file (usually with an FTP client) to your web server and access it with your web-browser.
+
+The first thing you will notice is a list of directories and files, like the one you usually see with MS Windows Explorer or OSX Finder.
+
+You can move into directories or edit files. You can use the controls on the top of the page to move back to parent directories.
+
+
+## 2. Configuration variables
 
 The following are variables that give you ways to control the file manager.
 
 Knowledge of the programming language PHP is required.
 
 
-### 1.1. $columns
+### 2.1. $columns
 
 Variable type: String  
 Default value: "sizehuman,mtime,perm"
@@ -46,7 +55,7 @@ Notice [2]: Works on Unix systems with the POSIX library installed.
 Notice [3]: Works on Unix systems.
 
 
-### 1.2. $text_file_extensions
+### 2.2. $text_file_extensions
 
 Variable type: String  
 Default value: "txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess"
@@ -54,7 +63,7 @@ Default value: "txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,
 Comma separated list of text file extensions in lower case. When text files are opened, a text editor becomes available to allow you to edit them.
 
 
-### 1.3. $image_file_extensions
+### 2.3. $image_file_extensions
 
 Variable type: String  
 Default value: "jpg,jpeg,png,gif,bmp"
@@ -62,7 +71,7 @@ Default value: "jpg,jpeg,png,gif,bmp"
 Comma separated list of image file extensions in lower case. When image files are opened the system uses the web-browser's native image controls to display them.
 
 
-### 1.4. $date_time_zone
+### 2.4. $date_time_zone
 
 Variable type: String  
 Default value: \<empty\>
@@ -72,7 +81,7 @@ If set, the system shows file dates/times according to that timezone.
 Read http://www.php.net/manual/en/timezones.php for a full list of supported timezones.
 
 
-### 1.5. $date_format_same_day
+### 2.5. $date_format_same_day
 
 Variable type: String  
 Default value: "H:i"
@@ -82,7 +91,7 @@ Format for dates when the date to be shown is in the current day.
 Read http://www.php.net/manual/en/function.date.php for a full list of symbols for the date format.
 
 
-### 1.6. $date_format_same_year
+### 2.6. $date_format_same_year
 
 Variable type: String  
 Default value: "j M, H:i"
@@ -92,7 +101,7 @@ Format for dates when the date to be shown is in the current year.
 Read http://www.php.net/manual/en/function.date.php for a full list of symbols for the date format.
 
 
-### 1.7. $date_format_global
+### 2.7. $date_format_global
 
 Variable type: String  
 Default value: "j M Y, H:i"
@@ -100,3 +109,19 @@ Default value: "j M Y, H:i"
 Format for dates when the date to be shown is older than the current year.
 
 Read http://www.php.net/manual/en/function.date.php for a full list of symbols for the date format.
+
+
+## 3. Translation
+
+File Manager allows you to translate the messages and captions of the script.
+
+In order to accomplish that, you will simply need to edit the file.
+
+Open the file with your editor and scroll down towards the end. Locate the function tt (stands for TranslaTe). In that function you can find the words and phrases used by the script. Change the second part of each line, not the first one as it is the handle used by the script.
+
+A few important assumptions before you proceed to your translation:
+
+1. Your editor must support UTF-8 without BOM.
+2. You need to know HTML so that you translate only the natural language words and not get confused by HTML tags.
+3. You need to know some basic PHP syntax so that you won't get confused with PHP strings.
+

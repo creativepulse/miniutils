@@ -3,29 +3,13 @@
 /**
  * File Manager - Mini Utils
  *
- * @version 1.1
+ * @version 1.2
  * @author Creative Pulse
  * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
  * @link http://www.creativepulse.gr
  */
 
-
-if (get_magic_quotes_gpc()) {
-	$vars = array();
-	foreach ($_GET as $k => $v) {
-		$vars[$k] = stripslashes($v);
-	}
-	$_GET = $vars;
-
-	$vars = array();
-	foreach ($_POST as $k => $v) {
-		$vars[$k] = stripslashes($v);
-	}
-	$_POST = $vars;
-
-	unset($vars);
-}
 
 class CpMiniUtils_FileManager {
 
@@ -37,8 +21,8 @@ class CpMiniUtils_FileManager {
 	// default: sizehuman,mtime,perm
 	public $columns = 'sizehuman,mtime,perm';
 
-	// default: txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess
-	public $text_file_extensions = 'txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess';
+	// default: txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess,log,conf,cfg
+	public $text_file_extensions = 'txt,ini,md,markdown,js,css,less,sass,scss,php,php3,htm,html,xml,atom,rss,xsl,dtd,h,c,cpp,c++,m,as,py,rb,pl,tcl,pas,svg,vb,asp,aspx,cgi,bat,htaccess,log,conf,cfg';
 
 	// default: jpg,jpeg,png,gif,bmp
 	public $image_file_extensions = 'jpg,jpeg,png,gif,bmp';
@@ -88,7 +72,7 @@ class CpMiniUtils_FileManager {
 	public function show_breadcrumbs_header() {
 		$path = preg_replace('~/{2,}~', '/', $this->path);
 		if ($path == '') {
-			return '[No path specified]';
+			return '[' . tt('No path specified') . ']';
 		}
 
 		$html = '';
@@ -118,11 +102,11 @@ class CpMiniUtils_FileManager {
 		}
 
 		if ($previous_link != '') {
-			$html .= ' &nbsp; [ ' . sprintf($link_fmt, urlencode($previous_link), htmlspecialchars('Up')) . ' ]';
+			$html .= ' &nbsp; [ ' . sprintf($link_fmt, urlencode($previous_link), tt('Up')) . ' ]';
 		}
 
 		$this->body .=
-'<div class="breadcrumbs_header">Path ' . $html . '</div>
+'<div class="breadcrumbs_header">' . tt('Path %s', $html) . '</div>
 ';
 	}
 
@@ -154,7 +138,7 @@ class CpMiniUtils_FileManager {
 
 				if ($script_path_root != $image_path_root) {
 					$this->body .=
-'<div class="error">Cannot show image from a different drive</div>
+'<div class="error">' . tt('Cannot show image from a different drive') . '</div>
 ';
 				}
 				else {
@@ -176,7 +160,7 @@ class CpMiniUtils_FileManager {
 
 			if ($relative_path !== false) {				
 				$this->body .=
-'<div class="show_image"><img src="' . $relative_path . basename($this->path) . '" alt="Image out of reach"></div>
+'<div class="show_image"><img src="' . $relative_path . basename($this->path) . '" alt="' . tt('Image out of reach') . '"></div>
 ';
 			}
 		}
@@ -185,12 +169,12 @@ class CpMiniUtils_FileManager {
 
 			if (!is_readable($this->path) && !is_writable($this->path)) {
 				$this->body .=
-'<div class="error">File neither readable or writable</div>
+'<div class="error">' . tt('File neither readable or writable') . '</div>
 ';
 			}
 			else if (!is_readable($this->path)) {
 				$this->body .=
-'<div class="error">File is not readable</div>
+'<div class="error">' . tt('File is not readable') . '</div>
 ';
 			}
 			else {
@@ -201,14 +185,14 @@ class CpMiniUtils_FileManager {
 					if (isset($_POST['load'])) {
 						$content = file_get_contents($this->path);
 						$this->body .=
-'<div class="notice">File loaded</div>
+'<div class="notice">' . tt('File loaded') . '</div>
 ';
 					}
 					else {
 						$content = $_POST['content'];
 						file_put_contents($this->path, $content);
 						$this->body .=
-'<div class="notice">File saved</div>
+'<div class="notice">' . tt('File saved') . '</div>
 ';
 					}
 				}
@@ -219,8 +203,8 @@ class CpMiniUtils_FileManager {
 
 		<textarea name="content" rows="30">' . htmlspecialchars($content) . '</textarea>
 
-		<input type="submit" name="load" value="Load">
-		<input type="submit" name="save" value="Save"' . (is_writable($this->path) ? '' : ' disabled') . '>
+		<input type="submit" name="load" value="' . tt('Load') . '">
+		<input type="submit" name="save" value="' . tt('Save') . '"' . (is_writable($this->path) ? '' : ' disabled') . '>
 
 	</form>
 </div>
@@ -230,7 +214,7 @@ class CpMiniUtils_FileManager {
 		else {
 			// unhandled file
 			$this->body .=
-'<div class="notice">Unable to handle &quot;' . htmlspecialchars(substr($ext, 1, -1)) . '&quot; files</div>
+'<div class="notice">' . tt('Unable to handle &quot;%s&quot; files', htmlspecialchars(substr($ext, 1, -1))) . '</div>
 ';
 		}
 	}
@@ -256,7 +240,7 @@ class CpMiniUtils_FileManager {
 		}
 	}
 
-	private function list_files_attr($filename, $column_type, $regular_file) {
+	private function list_files_attr($filename, $column_type, $is_dir) {
 		$perms = 0;
 		$perms_str = '';
 
@@ -310,7 +294,7 @@ class CpMiniUtils_FileManager {
 		$filesize = 0;
 		$filesize_str = '';
 
-		if ($regular_file && ($column_type == 'size' || $column_type == 'sizehuman' || $column_type == 'sizebytes')) {
+		if (!$is_dir && ($column_type == 'size' || $column_type == 'sizehuman' || $column_type == 'sizebytes')) {
 			$filesize = filesize($filename);
 
 			if ($column_type == 'size' || $column_type == 'sizehuman') {
@@ -347,30 +331,19 @@ class CpMiniUtils_FileManager {
 		$result = '';
 		switch ($column_type) {
 			case 'size':
-				if ($regular_file) {
-					$result = '<div class="sz">' . $filesize_str . ' [' . number_format(filesize($filename)) . ']</div>';
-				}
-				else {
-					$result = '&nbsp;';
-				}
+				$result = $is_dir ? '&nbsp;' : $filesize_str . ' [' . number_format(filesize($filename)) . ']';
 				break;
 
 			case 'sizehuman':
-				if ($regular_file) {
-					$result = '<div class="sz">' . $filesize_str . '</div>';
-				}
-				else {
-					$result = '&nbsp;';
-				}
+				$result = $is_dir ? '&nbsp;' : $filesize_str;
 				break;
 
 			case 'sizebytes':
-				if ($regular_file) {
-					$result = '<div class="sz">' . number_format(filesize($filename)) . '</div>';
-				}
-				else {
-					$result = '&nbsp;';
-				}
+				$result = $is_dir ? '&nbsp;' : number_format(filesize($filename));
+				break;
+
+			case 'sizeplain':
+				$result = $is_dir ? '' : filesize($filename);
 				break;
 
 			case 'perm':
@@ -419,7 +392,7 @@ class CpMiniUtils_FileManager {
 					$result = htmlspecialchars($data['name']);
 				}
 				else {
-					$result = '&lt;N/A&gt; (' . $result . ')';
+					$result = '&lt;' . tt('N/A') . '&gt; (' . $result . ')';
 				}
 				break;
 
@@ -440,7 +413,7 @@ class CpMiniUtils_FileManager {
 					$result = htmlspecialchars($data['name']);
 				}
 				else {
-					$result = '&lt;N/A&gt; (' . $result . ')';
+					$result = '&lt;' . tt('N/A') . '&gt; (' . $result . ')';
 				}
 				break;
 
@@ -457,96 +430,177 @@ class CpMiniUtils_FileManager {
 		return $result;
 	}
 
+	private function list_files_cmp($a, $b) {
+		$order = $this->current_order == 'desc' ? -1 : 1;
+
+		$a2 = false;
+		$b2 = false;
+
+		if ($this->current_sort == 'size' || $this->current_sort == 'sizehuman' || $this->current_sort == 'sizebytes') {
+			$a2 = intval($a['sizeplain']);
+			$b2 = intval($b['sizeplain']);
+		}
+		else if ($this->current_sort == 'ctime' || $this->current_sort == 'ctimets') {
+			$a2 = intval($a['ctimets']);
+			$b2 = intval($b['ctimets']);
+		}
+		else if ($this->current_sort == 'mtime' || $this->current_sort == 'mtimets') {
+			$a2 = intval($a['mtimets']);
+			$b2 = intval($b['mtimets']);
+		}
+		else if ($this->current_sort == 'atime' || $this->current_sort == 'atimets') {
+			$a2 = intval($a['atimets']);
+			$b2 = intval($b['atimets']);
+		}
+		else if ($this->current_sort == 'ownernum' || $this->current_sort == 'groupnum') {
+			$a2 = intval($a[$this->current_sort]);
+			$b2 = intval($b[$this->current_sort]);
+		}
+		else if ($this->current_sort == 'owner' || $this->current_sort == 'group' || $this->current_sort == 'perm' || $this->current_sort == 'permstr' || $this->current_sort == 'permnum') {
+			$a2 = $a[$this->current_sort];
+			$b2 = $b[$this->current_sort];
+		}
+
+		if ($a2 !== false) {
+			if ($a2 < $b2) {
+				return $order * -1;
+			}
+			else if ($a2 > $b2) {
+				return $order;
+			}
+		}
+
+		$a2 = mb_strtolower($a['filename']);
+		$b2 = mb_strtolower($b['filename']);
+
+		if ($a2[0] == '.' && $b2[0] != '.') {
+			return $order * -1;
+		}
+		else if ($a2[0] != '.' && $b2[0] == '.') {
+			return $order;
+		}
+		else if ($a2 < $b2) {
+			return $order * -1;
+		}
+		else if ($a2 > $b2) {
+			return $order;
+		}
+		else {
+			return 0;
+		}
+	}
+
 	public function list_files() {
 		$this->show_breadcrumbs_header();
 
 		$this->title = '[D] ' . $this->path;
 
+		// collect fields
+		$allowed_columns = array('size', 'sizehuman', 'sizebytes', 'perm', 'permstr', 'permnum', 'ctime', 'ctimets', 'mtime', 'mtimets', 'atime', 'atimets', 'owner', 'ownernum', 'group', 'groupnum');
+		$show_columns = array('type', 'filename');
+		$load_columns = $show_columns;
+		foreach (explode(',', $this->columns) as $column) {
+			$column = trim($column);
+			if ($column == '') {
+				continue;
+			}
+
+			if (!in_array($column, $allowed_columns)) {
+				$this->body .=
+'<div class="notice">' . tt('Warning: Columns configuration <br/>contains unknown values') . '</div>
+';
+				continue;
+			}
+
+			if (!in_array($column, $show_columns)) {
+				$show_columns[] = $column;
+				$load_columns[] = $column;
+			}
+
+			if (($column == 'size' || $column == 'sizehuman' || $column == 'sizebytes') && !in_array('sizeplain', $load_columns)) {
+				$load_columns[] = 'sizeplain';
+			}
+
+			if ($column == 'ctime' && !in_array('ctimets', $load_columns)) {
+				$load_columns[] = 'ctimets';
+			}
+
+			if ($column == 'mtime' && !in_array('mtimets', $load_columns)) {
+				$load_columns[] = 'mtimets';
+			}
+
+			if ($column == 'atime' && !in_array('atimets', $load_columns)) {
+				$load_columns[] = 'atimets';
+			}
+		}
+
+		// list files
 		if ($dp = @opendir($this->path)) {
 			$path = $this->path;
 			if (substr($path, -1) != '/') {
 				$path .= '/';
 			}
 
-			$dirs = array();
-			$files = array();
-			$other = array();
+			$all_files = array();
 			while (false !== ($file = readdir($dp))) {
 				if ($file != '.' && $file != '..') {
-					$filename = $path . $file;
-					if (is_dir($filename)) {
-						$dirs[] = $file;
+					$data = array('filename' => $path . $file);
+
+					if (is_dir($data['filename'])) {
+						$data['type'] = 'dir';
 					}
-					else if (is_file($filename)) {
-						$files[] = $file;
+					else if (is_file($data['filename'])) {
+						$data['type'] = 'file';
 					}
 					else {
-						$other[] = $file;
+						$data['type'] = 'other';
 					}
+
+					$all_files[] = $data;
 				}
 			}
 			closedir($dp);
 
-			sort($dirs);
-			sort($files);
-			sort($other);
-
-			if (empty($dirs) && empty($files) && empty($other)) {
+			if (empty($all_files)) {
 				$this->body .=
-'<div class="notice">Directory is empty</div>
+'<div class="notice">' . tt('Directory is empty') . '</div>
 ';
 			}
 			else {
-				$columns = explode(',', $this->columns);
+				// populate data
+				foreach ($all_files as $k_file => $file) {
+					foreach ($load_columns as $column) {
+						if ($column == 'type' || $column == 'filename') {
+							continue;
+						}
 
-				$column_names = array(
-					'size' => 'Size',
-					'sizehuman' => 'Size',
-					'sizebytes' => 'Size',
-					'perm' => 'Permissions',
-					'permstr' => 'Permissions',
-					'permnum' => 'Permissions',
-					'ctime' => 'Created',
-					'ctimets' => 'Created',
-					'mtime' => 'Modified',
-					'mtimets' => 'Modified',
-					'atime' => 'Accessed',
-					'atimets' => 'Accessed',
-					'owner' => 'Owner',
-					'ownernum' => 'Owner',
-					'group' => 'Group',
-					'groupnum' => 'Group',
-				);
-
-				// check if all columns are known
-				foreach ($columns as $column_type) {
-					$column_type = trim($column_type);
-					if ($column_type != '' && !isset($column_names[$column_type])) {
-						$this->body .=
-'<div class="notice">Warning: Columns configuration <br/>contains unknown values</div>
-';
-						break;
+						$all_files[$k_file][$column] = $this->list_files_attr($file['filename'], $column, $file['type'] == 'dir');
 					}
 				}
 
+				$this->current_sort = (string) @$_GET['sort'];
+				if ($this->current_sort == '' || $this->current_sort == 'type' || !in_array($this->current_sort, $show_columns)) {
+					$this->current_sort = 'filename';
+				}
+
+				$this->current_order = (string) @$_GET['order'];
+				if ($this->current_order != 'asc' && $this->current_order != 'desc') {
+					$this->current_order = 'asc';
+				}
+
+				usort($all_files, array(get_class($this), 'list_files_cmp'));
+
+				$link_fmt = '<a href="' . str_replace('%', '%%', basename(__FILE__)) . '?path=%s&sort=%s&order=%s">%s</a>';
+
+				// show table header
 				$this->body .=
 '<table align="center" class="list">
 	<tr>
-		<th>&nbsp;</th>
-		<th>File name</th>
 ';
 
 				$last_column_name = '';
-				foreach ($columns as $column_type) {
-					$column_type = trim($column_type);
-					if ($column_type == '') {
-						continue;
-					}
-
-					$column_name = @$column_names[$column_type];
-					if ($column_name === null) {
-						continue;
-					}
+				foreach ($show_columns as $column) {
+					$column_name = $column == 'type' ? '' : tt($column);
 
 					if ($last_column_name == $column_name) {
 						$column_name = '&nbsp;';
@@ -555,107 +609,95 @@ class CpMiniUtils_FileManager {
 						$last_column_name = $column_name;
 					}
 
+					if ($column_name != '&nbsp;') {
+						$order = 'asc';
+						$order_symbol = '';
+						if ($this->current_sort == $column) {
+							if ($this->current_order == 'asc') {
+								$order_symbol = ' &darr;';
+								$order = 'desc';
+							}
+							else {
+								$order_symbol = ' &uarr;';
+								$order = 'asc';
+							}
+						}
+
+						$column_name = sprintf($link_fmt, urlencode($this->path), $column, $order, $column_name . $order_symbol);
+					}
+
 					$this->body .=
 '		<th>' . $column_name . '</th>
 ';
 				}
 
-
 				$this->body .=
 '	</tr>
 ';
 
-				$link_fmt = '<a href="' . basename(__FILE__) . '?path=%s">%s</a>';
-
-				if ($this->date_format_same_day == '') {
-					$this->date_format_same_day = 'Y-m-d H:i:s';
-				}
-
-				if ($this->date_format_same_year == '') {
-					$this->date_format_same_year = 'Y-m-d H:i:s';
-				}
-
-				if ($this->date_format_global == '') {
-					$this->date_format_global = 'Y-m-d H:i:s';
-				}
-
-				foreach ($dirs as $file) {
-					$filename = $path . $file;
-					$this->body .=
-'	<tr class="dir">
-		<td>[Dir]</td>
-		<td>' . sprintf($link_fmt, urlencode($filename), htmlspecialchars($file)) . '</td>
+				// show file data
+				foreach (array('dir', 'file', 'special') as $file_type) {
+					foreach ($all_files as $file) {
+						if ($file['type'] == $file_type) {
+							$this->body .=
+'	<tr class="' . $file['type'] . '">
+		<td>[' . tt($file['type']) . ']</td>
+		<td>' . sprintf($link_fmt, urlencode($file['filename']), $this->current_sort, $this->current_order, htmlspecialchars(basename($file['filename']))) . '</td>
 ';
 
-					foreach ($columns as $column_type) {
-						$this->body .=
-'		<td>' . $this->list_files_attr($filename, $column_type, false) . '</td>
+							foreach ($show_columns as $column) {
+								if ($column != 'type' && $column != 'filename') {
+									$class = $column == 'sizehuman' || $column == 'size' || $column == 'sizebytes' ? ' class="sz"' : '';
+									$this->body .=
+'		<td' . $class . '>' . $file[$column] . '</td>
 ';
-					}
+								}
+							}
 
-					$this->body .=
+							$this->body .=
 '	</tr>
 ';
-				}
-
-				foreach ($files as $file) {
-					$filename = $path . $file;
-					$this->body .=
-'	<tr class="file">
-		<td>[File]</td>
-		<td>' . sprintf($link_fmt, urlencode($filename), htmlspecialchars($file)) . '</td>
-';
-
-					foreach ($columns as $column_type) {
-						$this->body .=
-'		<td>' . $this->list_files_attr($filename, $column_type, true) . '</td>
-';
+						}
 					}
-
-
-					$this->body .=
-'	</tr>
-';
-				}
-
-				foreach ($other as $file) {
-					$filename = $path . $file;
-					$this->body .=
-'	<tr class="special">
-		<td>[Special]</td>
-		<td>' . htmlspecialchars($file) . '</td>
-';
-
-					foreach ($columns as $column_type) {
-						$this->body .=
-'		<td>' . $this->list_files_attr($filename, $column_type, false) . '</td>
-';
-					}
-
-
-					$this->body .=
-'	</tr>
-';
 				}
 
 				$this->body .=
 '</table>
-';			
+';
 			}
 		}
 		else {
 			$this->body .=
-'<div class="error">Unable to open directory</div>
+'<div class="error">' . tt('Unable to open directory') . '</div>
 ';
 		}
 	}
 
 	public function run() {
+		if (get_magic_quotes_gpc()) {
+			$vars = array();
+			foreach ($_GET as $k => $v) {
+				$vars[$k] = stripslashes($v);
+			}
+			$_GET = $vars;
+
+			$vars = array();
+			foreach ($_POST as $k => $v) {
+				$vars[$k] = stripslashes($v);
+			}
+			$_POST = $vars;
+
+			unset($vars);
+		}
+
+
 		clearstatcache();
+
 
 		if (!empty($this->date_time_zone)) {
 			date_default_timezone_set($this->date_time_zone);
 		}
+
 
 		$this->path = (string) @$_GET['path'];
 		if ($this->path == '') {
@@ -663,14 +705,28 @@ class CpMiniUtils_FileManager {
 		}
 		$this->path = str_replace('\\', '/', $this->path);
 
+
+		if ($this->date_format_same_day == '') {
+			$this->date_format_same_day = 'Y-m-d H:i:s';
+		}
+
+		if ($this->date_format_same_year == '') {
+			$this->date_format_same_year = 'Y-m-d H:i:s';
+		}
+
+		if ($this->date_format_global == '') {
+			$this->date_format_global = 'Y-m-d H:i:s';
+		}
+
+
 		if (strpos($this->path, "\0") !== false || strpos($this->path, '../') !== false || strpos($this->path, '://') !== false) {
 			$this->body .=
-'<div class="error">Path &quot;' . htmlspecialchars($this->path) . '&quot; in invalid</div>
+'<div class="error">' . tt('Path &quot;%s&quot; in invalid', htmlspecialchars($this->path)) . '</div>
 ';
 		}
 		else if (!file_exists($this->path)) {
 			$this->body .=
-'<div class="error">Path &quot;' . htmlspecialchars($this->path) . '&quot; does not exist</div>
+'<div class="error">' . tt('Path &quot;%s&quot; does not exist', htmlspecialchars($this->path)) . '</div>
 ';
 		}
 		else if (is_dir($this->path)) {
@@ -681,11 +737,11 @@ class CpMiniUtils_FileManager {
 		}
 		else {
 			$this->body .=
-'<div class="error">Path &quot;' . htmlspecialchars($this->path) . '&quot; does not point to a directory or a regular file</div>
+'<div class="error">' . tt('Path &quot;%s&quot; does not point to a directory or a regular file', htmlspecialchars($this->path)) . '</div>
 ';
 		}
 
-		$this->title = $this->title == '' ? 'File Manager' : htmlspecialchars($this->title) . ' | File Manager';
+		$this->title = $this->title == '' ? tt('File Manager') : sprintf('%s | File Manager', htmlspecialchars($this->title));
 
 		echo
 '<!DOCTYPE html>
@@ -722,6 +778,9 @@ a:hover {
 	text-align: left;
 	font-size: 0.9em;
 	padding: 20px 10px 5px 10px;
+}
+.list th a, .list th a:link, .list th a:visited {
+	color: #000;
 }
 .list {
 	border-collapse: collapse;
@@ -798,6 +857,83 @@ a:hover {
 	}
 
 }
+
+
+if (!function_exists('mb_strtolower')) {
+	function mb_strtolower($str) {
+		return strtolower($str);
+	}
+}
+
+
+function tt($str, $arg = false) {
+
+	$strs = array(
+
+		// main
+		'File Manager' => 'File Manager', // plain title
+		'%s | File Manager' => '%s | File Manager', // title with path
+		'Path &quot;%s&quot; in invalid' => 'Path &quot;%s&quot; in invalid',
+		'Path &quot;%s&quot; does not exist' => 'Path &quot;%s&quot; does not exist',
+		'Path &quot;%s&quot; does not point to a directory or a regular file' => 'Path &quot;%s&quot; does not point to a directory or a regular file',
+
+		// breadcrumbs
+		'No path specified' => 'No path specified',
+		'Up' => 'Up',
+		'Path %s' => 'Path %s',
+
+		// file show
+		'Cannot show image from a different drive' => 'Cannot show image from a different drive',
+		'Image out of reach' => 'Image out of reach',
+		'File neither readable or writable' => 'File neither readable or writable',
+		'File is not readable' => 'File is not readable',
+		'File loaded' => 'File loaded',
+		'File saved' => 'File saved',
+		'Load' => 'Load',
+		'Save' => 'Save',
+		'Unable to handle &quot;%s&quot; files' => 'Unable to handle &quot;%s&quot; files',
+
+		// file list
+		'Unable to open directory' => 'Unable to open directory',
+		'N/A' => 'N/A', // Not Available
+		'Directory is empty' => 'Directory is empty',
+		'Warning: Columns configuration <br/>contains unknown values' => 'Warning: Columns configuration <br/>contains unknown values',
+		'dir' => 'Dir',
+		'file' => 'File',
+		'special' => 'Special',
+
+		// file list - column names
+		'filename' => 'File name',
+		'size' => 'Size',
+		'sizehuman' => 'Size',
+		'sizebytes' => 'Size',
+		'perm' => 'Permissions',
+		'permstr' => 'Permissions',
+		'permnum' => 'Permissions',
+		'ctime' => 'Created',
+		'ctimets' => 'Created',
+		'mtime' => 'Modified',
+		'mtimets' => 'Modified',
+		'atime' => 'Accessed',
+		'atimets' => 'Accessed',
+		'owner' => 'Owner',
+		'ownernum' => 'Owner',
+		'group' => 'Group',
+		'groupnum' => 'Group',
+
+	);
+
+	if (!isset($strs[$str])) {
+		return $str;
+	}
+	else if ($arg === false) {
+		return $strs[$str];
+	}
+	else {
+		return sprintf($strs[$str], $arg);
+	}
+}
+
 
 $proc = new CpMiniUtils_FileManager();
 
