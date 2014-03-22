@@ -3,7 +3,7 @@
 /**
  * File Manager - Mini Utils
  *
- * @version 1.2
+ * @version 1.3
  * @author Creative Pulse
  * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
@@ -43,7 +43,7 @@ class CpMiniUtils_FileManager {
 
 	// system variables - do not edit
 
-	public $version = '1.0';
+	public $version = '1.3';
 	public $path = '';
 
 	public $title = '';
@@ -495,6 +495,11 @@ class CpMiniUtils_FileManager {
 
 		$this->title = '[D] ' . $this->path;
 
+		$path = $this->path;
+		if (substr($path, -1) != '/') {
+			$path .= '/';
+		}
+
 		// collect fields
 		$allowed_columns = array('size', 'sizehuman', 'sizebytes', 'perm', 'permstr', 'permnum', 'ctime', 'ctimets', 'mtime', 'mtimets', 'atime', 'atimets', 'owner', 'ownernum', 'group', 'groupnum');
 		$show_columns = array('type', 'filename');
@@ -534,13 +539,82 @@ class CpMiniUtils_FileManager {
 			}
 		}
 
-		// list files
-		if ($dp = @opendir($this->path)) {
-			$path = $this->path;
-			if (substr($path, -1) != '/') {
-				$path .= '/';
+		// handle upload
+		if (!empty($_FILES['file'])) {
+			$error = '';
+			$upload_tmp_name = (string) @$_FILES['file']['tmp_name'];
+			$upload_name = (string) @$_FILES['file']['name'];
+			$upload_error = intval(@$_FILES['file']['error']);
+
+			if ($upload_tmp_name == '' || !file_exists($upload_tmp_name) || !is_uploaded_file($upload_tmp_name)) {
+				$error = tt('Unsafe file upload attempt');
+				$upload_tmp_name = '';
+			}
+			else if ($upload_name == '' || strpos($upload_name, "\0") !== false || strpos($upload_name, '/') !== false || strpos($upload_name, '\\') !== false) {
+				$error = tt('Unsafe file upload attempt');
+			}
+			else if (!file_exists($path) || !is_dir($path)) {
+				$error = tt('Current directory does not exist anymore');
+			}
+			else if (!is_writable($path)) {
+				$error = tt('Current directory is not writable');
+			}
+			else if ($upload_error != 0) {
+				switch ($upload_error) {
+					case 1: // UPLOAD_ERR_INI_SIZE
+						$error = tt('Attempt to upload file larger than system limits');
+						break;
+
+					case 2: // UPLOAD_ERR_FORM_SIZE
+						$error = tt('Attempt to upload file larger than website limits');
+						break;
+
+					case 3: // UPLOAD_ERR_PARTIAL
+						$error = tt('Upload process was interrupted');
+						break;
+
+					case 4: // UPLOAD_ERR_NO_FILE
+						$error = tt('No file was uploaded');
+						break;
+
+					case 6: // UPLOAD_ERR_NO_TMP_DIR
+						$error = tt('Temporary directory is missing');
+						break;
+
+					case 7: // UPLOAD_ERR_CANT_WRITE
+						$error = tt('Cannot write temporary upload file');
+						break;
+
+					case 8: // UPLOAD_ERR_EXTENSION
+						$error = tt('An extension does not allow this upload');
+						break;
+
+					default:
+						$error = tt('Unhandled UploadHelper error [%d]', $upload_error);
+				}
+			}
+			else if (!move_uploaded_file($upload_tmp_name, $path . $upload_name)) {
+				$error = tt('Unable to move the uploaded file to current directory. Perhaps there is not enough space?');
 			}
 
+			if ($error == '') {
+				$this->body .=
+'<div class="notice">' . tt('File &quot;%s&quot; uploaded successfully', htmlspecialchars($upload_name)) . '</div>
+';
+			}
+			else {
+				$this->body .=
+'<div class="error">' . tt('Error on file upload') . ': <br/>' . $error . '</div>
+';
+
+				if (file_exists($upload_tmp_name)) {
+					@unlink($upload_tmp_name);
+				}
+			}
+		}
+
+		// list files
+		if ($dp = @opendir($this->path)) {
 			$all_files = array();
 			while (false !== ($file = readdir($dp))) {
 				if ($file != '.' && $file != '..') {
@@ -564,6 +638,13 @@ class CpMiniUtils_FileManager {
 			if (empty($all_files)) {
 				$this->body .=
 '<div class="notice">' . tt('Directory is empty') . '</div>
+
+<table align="center"><tr><td>
+	<form name="frm_upload" action="" method="post" enctype="multipart/form-data">
+		' . tt('Upload file') . ': <input type="file" name="file"' . (is_writable($this->path) ? '' : ' disabled') . '>
+		<input type="submit" name="btn_upload" value="' . tt('Upload') . '"' . (is_writable($this->path) ? '' : ' disabled') . '>
+	</form>
+</td></tr></table>
 ';
 			}
 			else {
@@ -662,7 +743,15 @@ class CpMiniUtils_FileManager {
 				}
 
 				$this->body .=
-'</table>
+'	<tr>
+		<td colspan="' . (count($show_columns) + 2) . '">
+			<form name="frm_upload" action="" method="post" enctype="multipart/form-data">
+				' . tt('Upload file') . ': <input type="file" name="file"' . (is_writable($this->path) ? '' : ' disabled') . '>
+				<input type="submit" name="btn_upload" value="' . tt('Upload') . '"' . (is_writable($this->path) ? '' : ' disabled') . '>
+			</form>
+		</td>
+	</tr>
+</table>
 ';
 			}
 		}
@@ -767,7 +856,7 @@ a:hover {
 .notice, .error {
 	background-color: #cefbf6;
 	width: 300px;
-	margin: 50px auto 0 auto;
+	margin: 50px auto 50px auto;
 	text-align: center;
 	padding: 10px 0;
 }
@@ -902,6 +991,24 @@ function tt($str, $arg = false) {
 		'file' => 'File',
 		'special' => 'Special',
 
+		// file upload
+		'Upload file' => 'Upload file',
+		'Upload' => 'Upload',
+		'Unsafe file upload attempt' => 'Unsafe file upload attempt',
+		'Current directory does not exist anymore' => 'Current directory does not exist anymore',
+		'Current directory is not writable' => 'Current directory is not writable',
+		'Attempt to upload file larger than system limits' => 'Attempt to upload file larger than system limits',
+		'Attempt to upload file larger than website limits' => 'Attempt to upload file larger than website limits',
+		'Upload process was interrupted' => 'Upload process was interrupted',
+		'No file was uploaded' => 'No file was uploaded',
+		'Temporary directory is missing' => 'Temporary directory is missing',
+		'Cannot write temporary upload file' => 'Cannot write temporary upload file',
+		'An extension does not allow this upload' => 'An extension does not allow this upload',
+		'Unhandled UploadHelper error [%d]' => 'Unhandled UploadHelper error [%d]',
+		'Unable to move the uploaded file to current directory. Perhaps there is not enough space?' => 'Unable to move the uploaded file to current directory. Perhaps there is not enough space?',
+		'File &quot;%s&quot; uploaded successfully' => 'File &quot;%s&quot; uploaded successfully',
+		'Error on file upload' => 'Error on file upload',
+
 		// file list - column names
 		'filename' => 'File name',
 		'size' => 'Size',
@@ -944,4 +1051,4 @@ catch (Exception $e) {
 	echo 'Error: ' . htmlspecialchars($e->getMessage());
 }
 
-?>
+?> 

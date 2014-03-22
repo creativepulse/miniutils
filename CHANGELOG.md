@@ -1,6 +1,9 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-03-22 - v1.11 ####
+* Upgrade: Upgraded script `file_manager.php` v1.3. Added ability to upload files.
+
 #### 2014-03-02 - v1.10 ####
 * Upgrade: Upgraded script `file_manager.php` v1.2. Added ability to accept translations and to allow users sorting by columns when browsing files.
 

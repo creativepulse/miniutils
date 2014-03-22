@@ -14,7 +14,7 @@ Upload the file (usually with an FTP client) to your web server and access it wi
 
 The first thing you will notice is a list of directories and files, like the one you usually see with MS Windows Explorer or OSX Finder.
 
-You can move into directories or edit files. You can use the controls on the top of the page to move back to parent directories.
+You can move into directories, edit and upload files. You can use the controls on the top of the page to move back to parent directories.
 
 
 ## 2. Configuration variables
