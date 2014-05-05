@@ -9,7 +9,7 @@ Mini Utils consist of:
 A single file script that analyzes the EXIF meta data of JPEG and TIFF image files. Features an infection scanner that detects injected malware code.
 
 #### File Manager ####
-A single file script that lets you browse and upload files on your web server and edit text files.
+A single file script that lets you browse, edit and upload files on your web server.
 
 #### File Stats ####
 A single file script that shows statistics on files and directories, such as disk usage stats.
@@ -22,6 +22,9 @@ A single file script that allows advanced programmers direct command line (CLI) 
 
 #### Session Viewer ####
 A single file script that shows you the session data of a web site and gives you the ability to delete them.
+
+#### Terminal ####
+A single file script that allows you to run shell commands from your web browser.
 
 #### Text Editor ####
 A single file script you can use to view and edit the contents of files in a web site.

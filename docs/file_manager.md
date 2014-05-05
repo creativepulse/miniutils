@@ -5,14 +5,14 @@ Upload this script to a site to view and edit files.
 
 Once uploaded access it from your web-browser.
 
-You can use this program to browse files in your web server and edit text files.
+You can use this program to browse and edit files in your web server.
 
 
 ## 1. Usage
 
 Upload the file (usually with an FTP client) to your web server and access it with your web-browser.
 
-The first thing you will notice is a list of directories and files, like the one you usually see with MS Windows Explorer or OSX Finder.
+The first thing you will notice is a list of directories and files, like the one you usually see with MS Windows Explorer or OS X Finder.
 
 You can move into directories, edit and upload files. You can use the controls on the top of the page to move back to parent directories.
 

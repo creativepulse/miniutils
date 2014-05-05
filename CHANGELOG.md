@@ -1,6 +1,12 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-05-05 - v1.13 ####
+* Upgrade: Upgraded script `file_manager.php` v1.4. Added ability to delete files and set their permissions.
+
+#### 2014-04-12 - v1.12 ####
+* New: Added script `terminal.php` v1.1
+
 #### 2014-03-22 - v1.11 ####
 * Upgrade: Upgraded script `file_manager.php` v1.3. Added ability to upload files.
 
