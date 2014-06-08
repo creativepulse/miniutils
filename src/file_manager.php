@@ -3,7 +3,7 @@
 /**
  * File Manager - Mini Utils
  *
- * @version 1.4
+ * @version 1.5
  * @author Creative Pulse
  * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
@@ -43,7 +43,7 @@ class CpMiniUtils_FileManager {
 
 	// system variables - do not edit
 
-	public $version = '1.4';
+	public $version = '1.5';
 	public $path = '';
 
 	public $title = '';
@@ -430,40 +430,71 @@ class CpMiniUtils_FileManager {
 		return $result;
 	}
 
-	public function list_files_get_composite_message($dirs_count, $files_count, $msg_single, $msg_composite) {
-		$dirs_msg = '';
-		if ($dirs_count == 1) {
-			$dirs_msg = tt('1 directory');
-		}
-		else if ($dirs_count > 1) {
-			$dirs_msg = tt('%d directories', $dirs_count);
+	public function list_files_get_composite_message($msg, $sel_item_count, $dirs_count, $files_count) {
+		$result = tt($msg, $sel_item_count);
+
+		if ($sel_item_count < $dirs_count + $files_count) {
+			$dirs_msg = '';
+			if ($dirs_count == 1) {
+				$dirs_msg = tt('1 directory');
+			}
+			else if ($dirs_count > 1) {
+				$aux_msg_required = true;
+				$dirs_msg = tt('%d directories', $dirs_count);
+			}
+
+			$files_msg = '';
+			if ($files_count == 1) {
+				$files_msg = tt('1 file');
+			}
+			else if ($files_count > 1) {
+				$files_msg = tt('%d files', $files_count);
+			}
+
+			if ($dirs_msg != '' && $files_msg == '') {
+				$aux_msg = tt('%s included', $dirs_msg);
+			}
+			else if ($dirs_msg == '' && $files_msg != '') {
+				$aux_msg = tt('%s included', $files_msg);
+			}
+			else {
+				$aux_msg = tt('%s and %s included', $dirs_msg, $files_msg);
+			}
+
+			$result .= ' <br/>(' . $aux_msg . ')';
 		}
 
-		$files_msg = '';
-		if ($files_count == 1) {
-			$files_msg = tt('1 file');
-		}
-		else if ($files_count > 1) {
-			$files_msg = tt('%d files', $files_count);
-		}
+		return $result;
+	}
 
-		if ($dirs_msg != '' && $files_msg != '') {
-			return tt($msg_composite, $dirs_msg, $files_msg);
-		}
-		else {
-			return tt($msg_single, $dirs_msg != '' ? $dirs_msg : $files_msg);
+	public function list_files_count($dir, &$dirs_count, &$files_count) {
+		if ($dp = opendir($dir)) {
+			while (false !== ($file = readdir($dp))) {
+				if ($file != '.' && $file != '..') {
+					if (is_dir($dir . '/' . $file)) {
+						$dirs_count++;
+						$this->list_files_count($dir . '/' . $file, $dirs_count, $files_count);
+					}
+					else {
+						$files_count++;
+					}
+				}
+			}
+			closedir($dp);
 		}
 	}
 
-	public function list_files_delete_execute($dir, &$affected_files_count, &$affected_directories_count) {
+	public function list_files_delete_execute($dir, &$affected_directories_count, &$affected_files_count) {
+		$error = '';
+
 		if ($dp = @opendir($dir)) {
 			while (false !== ($file = readdir($dp))) {
 				if ($file != '.' && $file != '..') {
 					$filename = $dir . '/' . $file;
 					if (is_dir($filename)) {
-						$error = $this->list_files_delete_execute($filename, $affected_files_count, $affected_directories_count);
+						$error = $this->list_files_delete_execute($filename, $affected_directories_count, $affected_files_count);
 						if ($error != '') {
-							return $error;
+							break;
 						}
 					}
 					else {
@@ -471,25 +502,28 @@ class CpMiniUtils_FileManager {
 							$affected_files_count++;
 						}
 						else {
-							return tt('Unable to delete file <br/>%s', htmlspecialchars($filename));
+							$error = tt('Unable to delete file <br/>%s', htmlspecialchars($filename));
+							break;
 						}
 					}
 				}
 			}
 			closedir($dp);
 
-			if (@rmdir($dir)) {
-				$affected_directories_count++;
+			if ($error == '') {
+				if (@rmdir($dir)) {
+					$affected_directories_count++;
+				}
+				else {
+					$error = tt('Unable to delete directory <br/>%s', htmlspecialchars($dir));
+				}
 			}
-			else {
-				return tt('Unable to delete directory <br/>%s', htmlspecialchars($dir));
-			}
-
-			return '';
 		}
 		else {
-			return tt('Unable to open directory <br/>%s', htmlspecialchars($dir));
+			$error = tt('Unable to open directory <br/>%s', htmlspecialchars($dir));
 		}
+
+		return $error;
 	}
 
 	public function list_files_delete($return_url) {
@@ -503,22 +537,16 @@ class CpMiniUtils_FileManager {
 			return;
 		}
 
-		$dirs_count = 0;
-		$files_count = 0;
+		$files_exist = false;
 		$files = !empty($_POST['cb']) ? $_POST['cb'] : explode('/', $_POST['files']);
 		foreach ($files as $file) {
-			$filename = $this->path . '/' . $file;
-			if (file_exists($filename)) {
-				if (is_dir($filename)) {
-					$dirs_count++;
-				}
-				else {
-					$files_count++;
-				}
+			if (file_exists($this->path . '/' . $file)) {
+				$files_exist = true;
+				break;
 			}
 		}
 
-		if ($dirs_count == 0 && $files_count == 0) {
+		if (!$files_exist) {
 			$this->body .=
 '<div class="error">
 	<p>' . tt('No files found') . '</p>
@@ -531,11 +559,53 @@ class CpMiniUtils_FileManager {
 		if (empty($_POST['files'])) {
 			// show confirmation dialog
 
+			$list_dirs = array();
+			$list_files = array();
+			$sel_item_count = 0;
+			$dirs_count = 0;
+			$files_count = 0;
+			$files = !empty($_POST['cb']) ? $_POST['cb'] : explode('/', $_POST['files']);
+			foreach ($files as $file) {
+				$filename = $this->path . '/' . $file;
+				if (file_exists($filename)) {
+					$sel_item_count++;
+					if (is_dir($filename)) {
+						$list_dirs[] = $file;
+						$dirs_count++;
+						$this->list_files_count($filename, $dirs_count, $files_count);
+					}
+					else {
+						$list_files[] = $file;
+						$files_count++;
+					}
+				}
+			}
+
 			$this->body .=
 '<form name="frm" method="post" action="">
 	<input type="hidden" name="files" value="' . htmlspecialchars(implode('/', $files)) . '">
 	<div class="notice">
-		<p>' . $this->list_files_get_composite_message($dirs_count, $files_count, 'Delete %s ?', 'Delete %s and %s ?') . '</p>
+		<p>' . tt('Delete') . ':</p>
+		<table align="center"><tr><td><ul>
+';
+
+			sort($list_dirs);
+			foreach ($list_dirs as $file) {
+				$this->body .=
+'			<li>[' . tt('dir') . '] ' . htmlspecialchars($file) . '</li>
+';
+			}
+
+			sort($list_files);
+			foreach ($list_files as $file) {
+				$this->body .=
+'			<li>[' . tt('file') . '] ' . htmlspecialchars($file) . '</li>
+';
+			}
+
+			$this->body .=
+'		</ul></td></tr></table>
+		<p>' . $this->list_files_get_composite_message('Delete %s items?', $sel_item_count, $dirs_count, $files_count) . '</p>
 		<p><input type="button" name="btn_cancel" value="' . tt('Cancel') . '" onclick="window.location=\'' . htmlspecialchars($return_url) . '\'">
 			&nbsp; &nbsp; <input type="submit" name="btn_delete" value="' . tt('Delete') . '"></p>
 	</div>
@@ -545,14 +615,16 @@ class CpMiniUtils_FileManager {
 		else {
 			// delete directories and files
 
-			$affected_files_count = 0;
+			$sel_item_count = 0;
 			$affected_directories_count = 0;
+			$affected_files_count = 0;
 			$error = '';
 			foreach ($files as $file) {
 				$filename = $this->path . '/' . $file;
 				if (file_exists($filename)) {
+					$sel_item_count++;
 					if (is_dir($filename)) {
-						$error = $this->list_files_delete_execute($filename, $affected_files_count, $affected_directories_count);
+						$error = $this->list_files_delete_execute($filename, $affected_directories_count, $affected_files_count);
 						if ($error != '') {
 							break;
 						}
@@ -572,7 +644,7 @@ class CpMiniUtils_FileManager {
 			if ($error == '') {
 				$this->body .=
 '<div class="notice">
-	<p>' . $this->list_files_get_composite_message($affected_directories_count, $affected_files_count, 'Deleted %s', 'Deleted %s and %s') . '</p>
+	<p>' . $this->list_files_get_composite_message('Deleted %s items', $sel_item_count, $affected_directories_count, $affected_files_count) . '</p>
 	<p>' . tt('Go back to the <a href="%s">file list</a>', $return_url) . '</p>
 </div>
 ';
@@ -588,6 +660,49 @@ class CpMiniUtils_FileManager {
 		}
 	}
 
+	public function list_files_permissions_execute($dir, $dir_perms, $file_perms, &$affected_directories_count, &$affected_files_count) {
+		$error = '';
+
+		if ($dp = @opendir($dir)) {
+			while (false !== ($file = readdir($dp))) {
+				if ($file != '.' && $file != '..') {
+					$filename = $dir . '/' . $file;
+					if (is_dir($filename)) {
+						$error = $this->list_files_permissions_execute($filename, $dir_perms, $file_perms, $affected_directories_count, $affected_files_count);
+						if ($error != '') {
+							break;
+						}
+					}
+					else if (is_file($filename) && $file_perms !== false) {
+						if (@chmod($filename, $file_perms)) {
+							$affected_files_count++;
+						}
+						else {
+							$error = tt('Unable to set permissions for the file <br/>%s', htmlspecialchars($filename));
+							break;
+						}
+					}
+				}
+			}
+			closedir($dp);
+
+			if ($error == '' && $dir_perms !== false) {
+				if (@chmod($dir, $dir_perms)) {
+					$affected_directories_count++;
+				}
+				else {
+					$error = tt('Unable to set permissions for the directory <br/>%s', htmlspecialchars($dir));
+					break;
+				}
+			}
+		}
+		else {
+			$error = tt('Unable to open directory <br/>%s', htmlspecialchars($dir));
+		}
+
+		return $error;
+	}
+
 	public function list_files_permissions($return_url) {
 		if (empty($_POST['cb']) && empty($_POST['files'])) {
 			$this->body .=
@@ -599,22 +714,16 @@ class CpMiniUtils_FileManager {
 			return;
 		}
 
-		$dirs_count = 0;
-		$files_count = 0;
+		$files_exist = false;
 		$files = !empty($_POST['cb']) ? $_POST['cb'] : explode('/', $_POST['files']);
 		foreach ($files as $file) {
-			$filename = $this->path . '/' . $file;
-			if (file_exists($filename)) {
-				if (is_dir($filename)) {
-					$dirs_count++;
-				}
-				else {
-					$files_count++;
-				}
+			if (file_exists($this->path . '/' . $file)) {
+				$files_exist = true;
+				break;
 			}
 		}
 
-		if ($dirs_count == 0 && $files_count == 0) {
+		if (!$files_exist) {
 			$this->body .=
 '<div class="error">
 	<p>' . tt('No files found') . '</p>
@@ -624,49 +733,269 @@ class CpMiniUtils_FileManager {
 			return;
 		}
 
+
 		// validate new permissions
-		$form_error = '';
-		if (!empty($_POST['new_permissions']) && !preg_match('/^[0-7]{3}$/', $_POST['new_permissions'])) {
-			$form_error = tt('Error: Invalid permissions');
+
+		$dir_txt = (string) @$_POST['dir_txt'];
+		$dir_txt_error = '';
+		if ($dir_txt != '' && !preg_match('/^[0-7]{3}$/', $dir_txt)) {
+			$dir_txt_error = tt('Error: Invalid permissions');
 		}
 
-		if (empty($_POST['files']) || $form_error != '') {
+		$file_txt = @$_POST['file_txt'];
+		$file_txt_error = '';
+		if ($file_txt != '' && !preg_match('/^[0-7]{3}$/', $file_txt)) {
+			$file_txt_error = tt('Error: Invalid permissions');
+		}
+
+
+		if (empty($_POST['files']) || $dir_txt_error != '' || $file_txt_error != '') {
 			// show input dialog
+
+			$list_dirs = array();
+			$list_files = array();
+			$sel_item_count = 0;
+			$dirs_count = 0;
+			$files_count = 0;
+			$files = !empty($_POST['cb']) ? $_POST['cb'] : explode('/', $_POST['files']);
+			foreach ($files as $file) {
+				$filename = $this->path . '/' . $file;
+				if (file_exists($filename)) {
+					$sel_item_count++;
+					if (is_dir($filename)) {
+						$list_dirs[] = $file;
+						$dirs_count++;
+						$this->list_files_count($filename, $dirs_count, $files_count);
+					}
+					else {
+						$list_files[] = $file;
+						$files_count++;
+					}
+				}
+			}
 
 			$this->body .=
 '<form name="frm" method="post" action="">
 	<input type="hidden" name="files" value="' . htmlspecialchars(implode('/', $files)) . '">
 	<div class="notice">
-		<p>' . $this->list_files_get_composite_message($dirs_count, $files_count, 'Set new permissions for %s', 'Set new permissions for %s and %s') . '</p>
-		' . ($form_error == '' ? '' : '<p style="color:red">' . $form_error . '</p>') . '
-		<p>' . tt('New permissions') . ' <input type="text" name="new_permissions" value="' . htmlspecialchars(@$_POST['new_permissions']) . '" size="5"> (' . tt('Example: 755') . ')</p>
+		<p>' . tt('Set permissions for') . ':</p>
+		<table align="center"><tr><td><ul>
+';
+
+			sort($list_dirs);
+			foreach ($list_dirs as $file) {
+				$this->body .=
+'			<li>[' . tt('dir') . '] ' . htmlspecialchars($file) . '</li>
+';
+			}
+
+			sort($list_files);
+			foreach ($list_files as $file) {
+				$this->body .=
+'			<li>[' . tt('file') . '] ' . htmlspecialchars($file) . '</li>
+';
+			}
+
+			$this->body .=
+'		</ul></td></tr></table>
+		<p>' . $this->list_files_get_composite_message('Set new permissions for %s items', $sel_item_count, $dirs_count, $files_count) . '</p>
+
+		<div class="perm_spacer"></div>
+
+		<p class="sub-title">' . tt('New permissions for directories') . '</p>
+		' . ($dir_txt_error == '' ? '' : '<p class="error-message">' . $dir_txt_error . '</p>') . '
+		<table class="perms_table">
+			<tr>
+				<td></td>
+				<td>R</td>
+				<td>W</td>
+				<td>X</td>
+			</tr>
+			<tr>
+				<td>' . tt('User') . '</td>
+				<td><input type="checkbox" name="dir_ur" value="4"></td>
+				<td><input type="checkbox" name="dir_uw" value="2"></td>
+				<td><input type="checkbox" name="dir_ux" value="1"></td>
+			</tr>
+			<tr>
+				<td>' . tt('Group') . '</td>
+				<td><input type="checkbox" name="dir_gr" value="4"></td>
+				<td><input type="checkbox" name="dir_gw" value="2"></td>
+				<td><input type="checkbox" name="dir_gx" value="1"></td>
+			</tr>
+			<tr>
+				<td>' . tt('Others') . '</td>
+				<td><input type="checkbox" name="dir_or" value="4"></td>
+				<td><input type="checkbox" name="dir_ow" value="2"></td>
+				<td><input type="checkbox" name="dir_ox" value="1"></td>
+			</tr>
+		</table>
+		<div class="perms_main">
+			<input type="text" name="dir_txt" value="' . htmlspecialchars($dir_txt) . '" size="5" placeholder="755">
+			<br/><span class="hint">' . tt('Blank = Do not set') . '</span>
+			<br/>
+			<br/><span class="hint">' . tt('<input type="button" name="copy_from_file" value="Copy"><br/>from file perms') . '</span>
+		</div>
+		<div style="clear:both"></div>
+
+		<div class="perm_spacer"></div>
+		<p class="sub-title">' . tt('New permissions for files') . '</p>
+		' . ($file_txt_error == '' ? '' : '<p class="error-message">' . $file_txt_error . '</p>') . '
+		<table class="perms_table">
+			<tr>
+				<td></td>
+				<td>R</td>
+				<td>W</td>
+				<td>X</td>
+			</tr>
+			<tr>
+				<td>' . tt('User') . '</td>
+				<td><input type="checkbox" name="file_ur" value="4"></td>
+				<td><input type="checkbox" name="file_uw" value="2"></td>
+				<td><input type="checkbox" name="file_ux" value="1"></td>
+			</tr>
+			<tr>
+				<td>' . tt('Group') . '</td>
+				<td><input type="checkbox" name="file_gr" value="4"></td>
+				<td><input type="checkbox" name="file_gw" value="2"></td>
+				<td><input type="checkbox" name="file_gx" value="1"></td>
+			</tr>
+			<tr>
+				<td>' . tt('Others') . '</td>
+				<td><input type="checkbox" name="file_or" value="4"></td>
+				<td><input type="checkbox" name="file_ow" value="2"></td>
+				<td><input type="checkbox" name="file_ox" value="1"></td>
+			</tr>
+		</table>
+		<div class="perms_main">
+			<input type="text" name="file_txt" value="' . htmlspecialchars($file_txt) . '" size="5" placeholder="644">
+			<br/><span class="hint">' . tt('Blank = Do not set') . '</span>
+			<br/>
+			<br/><span class="hint">' . tt('<input type="button" name="copy_from_dir" value="Copy"><br/>from directory perms') . '</span>
+		</div>
+		<div style="clear:both"></div>
+
+		<div class="perm_spacer"></div>
+		<p><input type="checkbox" id="subdirs" name="subdirs" value="1"' . (empty($_POST['files']) || isset($_POST['subdirs']) ? ' checked' : '') . '> <label for="subdirs">' . tt('Apply new permissions to sub-directories') . '</label></p>
+
+		&nbsp;
 		<p><input type="button" name="btn_cancel" value="' . tt('Cancel') . '" onclick="window.location=\'' . htmlspecialchars($return_url) . '\'">
 			&nbsp; &nbsp; <input type="submit" name="btn_permissions" value="' . tt('Set new permissions') . '"></p>
 	</div>
 </form>
+
+<script type="text/javascript">
+
+function on_txt_change(sender) {
+	if (document.process_changes) {
+		document.process_changes = false;
+		var val = sender.value.replace(/^\\s+|\\s+$/g, "");
+		var valid = val == "" || val.match(/^[0-7]{3}$/);
+		sender.className = valid ? "" : "invalid-box";
+		if (valid) {
+			var scope = sender.name.split("_")[0];
+
+			for (i_ugo = 0; i_ugo < 3; i_ugo++) {
+				var c_ugo = "ugo".substr(i_ugo, 1);
+				document.forms.frm[scope + "_" + c_ugo + "r"].checked = false;
+				document.forms.frm[scope + "_" + c_ugo + "w"].checked = false;
+				document.forms.frm[scope + "_" + c_ugo + "x"].checked = false;
+
+				var v = parseInt(val.substr(i_ugo, 1));
+				if (v >= 4) {
+					document.forms.frm[scope + "_" + c_ugo + "r"].checked = true;
+					v -= 4;
+				}
+				if (v >= 2) {
+					document.forms.frm[scope + "_" + c_ugo + "w"].checked = true;
+					v -= 2;
+				}
+				if (v >= 1) {
+					document.forms.frm[scope + "_" + c_ugo + "x"].checked = true;
+				}
+			}
+		}
+		document.process_changes = true;
+	}	
+}
+
+document.process_changes = true;
+var e = document.getElementsByTagName("input");
+for (var i = 0, len = e.length; i < len; i++) {
+	if (e[i].name == "copy_from_file") {
+		e[i].onclick = function () {
+			document.forms.frm.dir_txt.value = document.forms.frm.file_txt.value;
+			on_txt_change(document.forms.frm.dir_txt);
+		}
+	}
+	else if (e[i].name == "copy_from_dir") {
+		e[i].onclick = function () {
+			document.forms.frm.file_txt.value = document.forms.frm.dir_txt.value;
+			on_txt_change(document.forms.frm.file_txt);
+		}
+	}
+	else if (e[i].name == "dir_txt" || e[i].name == "file_txt") {
+		e[i].onkeyup = function () { on_txt_change(this); }
+	}
+	else if ((e[i].name.length == 6 && e[i].name.substr(0, 4) == "dir_") || (e[i].name.length == 7 && e[i].name.substr(0, 5) == "file_")) {
+		e[i].onchange = function () {
+			if (document.process_changes) {
+				document.process_changes = false;
+				var scope = this.name.split("_")[0], ugo = ["u", "g", "o"], rwx = ["r", "w", "x"], result = "";
+				for (i_ugo = 0; i_ugo < 3; i_ugo++) {
+					var v = 0;
+					for (i_rwx = 0; i_rwx < 3; i_rwx++) {
+						var input = document.forms.frm[scope + "_" + ugo[i_ugo] + rwx[i_rwx]];
+						if (input.checked) {
+							v += parseInt(input.value);
+						}
+					}
+					result += "" + v;
+				}
+				document.forms.frm[scope + "_txt"].value = result == "000" ? "" : result;
+				document.process_changes = true;
+			}
+		};
+	}
+}
+</script>
 ';
 		}
 		else {
 			// set new permissions for directories and files
 
-			$new_permissions = octdec($_POST['new_permissions']);
-			$affected_files_count = 0;
+			$dir_perms = $dir_txt == '' ? false : octdec($dir_txt);
+			$file_perms = $file_txt == '' ? false : octdec($file_txt);
+
+			$sel_item_count = 0;
 			$affected_directories_count = 0;
+			$affected_files_count = 0;
 			$error = '';
 			foreach ($files as $file) {
 				$filename = $this->path . '/' . $file;
 				if (file_exists($filename)) {
 					if (is_dir($filename)) {
-						if (@chmod($filename, $new_permissions)) {
-							$affected_directories_count++;
+						if (isset($_POST['subdirs'])) {
+							$sel_item_count++;
+							$error = $this->list_files_permissions_execute($filename, $dir_perms, $file_perms, $affected_directories_count, $affected_files_count);
+							if ($error != '') {
+								break;
+							}
 						}
-						else {
-							$error = tt('Unable to set permissions for the directory <br/>%s', htmlspecialchars($filename));
-							break;
+						else if ($dir_perms !== false) {
+							$sel_item_count++;
+							if (@chmod($filename, $dir_perms)) {
+								$affected_directories_count++;
+							}
+							else {
+								$error = tt('Unable to set permissions for the directory <br/>%s', htmlspecialchars($filename));
+								break;
+							}
 						}
 					}
-					else {
-						if (@chmod($filename, $new_permissions)) {
+					else if (is_file($filename) && $file_perms !== false) {
+						$sel_item_count++;
+						if (@chmod($filename, $file_perms)) {
 							$affected_files_count++;
 						}
 						else {
@@ -680,7 +1009,7 @@ class CpMiniUtils_FileManager {
 			if ($error == '') {
 				$this->body .=
 '<div class="notice">
-	<p>' . $this->list_files_get_composite_message($affected_directories_count, $affected_files_count, 'Set new permissions for %s', 'Set new permissions for %s and %s') . '</p>
+	<p>' . $this->list_files_get_composite_message('Set new permissions for %s items', $sel_item_count, $affected_directories_count, $affected_files_count) . '</p>
 	<p>' . tt('Go back to the <a href="%s">file list</a>', $return_url) . '</p>
 </div>
 ';
@@ -1073,51 +1402,49 @@ class CpMiniUtils_FileManager {
 </td></tr></table>
 
 <script type="text/javascript">
-(function (document) {
-	document.cbs = [];
-	document.cbs_autoset = false;
-	var elements = document.getElementsByTagName("input");
-	for (var i = 0, len = elements.length; i < len; i++) {
-		var element = elements[i];
-		if (element.id && element.id.substr(0, 3) == "cb_") {
-			if (element.id == "cb_all") {
-				element.onchange = function () {
-					if (!document.cbs_autoset) {
-						document.cbs_autoset = true;
-						for (var i = 0, len = document.cbs.length; i < len; i++) {
-							document.cbs[i].checked = this.checked;
-						}
-						document.getElementById("btn_delete").disabled = !this.checked;
-						document.getElementById("btn_permissions").disabled = !this.checked;
-						document.cbs_autoset = false;
+document.cbs = [];
+document.cbs_autoset = false;
+var elements = document.getElementsByTagName("input");
+for (var i = 0, len = elements.length; i < len; i++) {
+	var element = elements[i];
+	if (element.id && element.id.substr(0, 3) == "cb_") {
+		if (element.id == "cb_all") {
+			element.onchange = function () {
+				if (!document.cbs_autoset) {
+					document.cbs_autoset = true;
+					for (var i = 0, len = document.cbs.length; i < len; i++) {
+						document.cbs[i].checked = this.checked;
 					}
+					document.getElementById("btn_delete").disabled = !this.checked;
+					document.getElementById("btn_permissions").disabled = !this.checked;
+					document.cbs_autoset = false;
 				}
 			}
-			else {
-				document.cbs.push(element);
-				element.onchange = function () {
-					if (!document.cbs_autoset) {
-						var checked_count = 0, unchecked_count = 0;
-						for (var i = 0, len = document.cbs.length; i < len; i++) {
-							if (document.cbs[i].checked) {
-								checked_count++;
-							}
-							else {
-								unchecked_count++;
-							}
+		}
+		else {
+			document.cbs.push(element);
+			element.onchange = function () {
+				if (!document.cbs_autoset) {
+					var checked_count = 0, unchecked_count = 0;
+					for (var i = 0, len = document.cbs.length; i < len; i++) {
+						if (document.cbs[i].checked) {
+							checked_count++;
 						}
-
-						document.cbs_autoset = true;
-						document.getElementById("cb_all").checked = checked_count > 0 && unchecked_count == 0;
-						document.getElementById("btn_delete").disabled = checked_count == 0;
-						document.getElementById("btn_permissions").disabled = checked_count == 0;
-						document.cbs_autoset = false;
+						else {
+							unchecked_count++;
+						}
 					}
+
+					document.cbs_autoset = true;
+					document.getElementById("cb_all").checked = checked_count > 0 && unchecked_count == 0;
+					document.getElementById("btn_delete").disabled = checked_count == 0;
+					document.getElementById("btn_permissions").disabled = checked_count == 0;
+					document.cbs_autoset = false;
 				}
 			}
 		}
 	}
-})(document);
+}
 </script>
 ';
 			}
@@ -1202,7 +1529,7 @@ class CpMiniUtils_FileManager {
 ';
 		}
 
-		$this->title = $this->title == '' ? tt('File Manager') : sprintf('%s | File Manager', htmlspecialchars($this->title));
+		$this->title = $this->title == '' ? tt('File Manager') : tt('%s | File Manager', htmlspecialchars($this->title));
 
 		echo
 '<!DOCTYPE html>
@@ -1225,6 +1552,9 @@ a, a:visited, a:link {
 a:hover {
 	text-decoration: underline;
 }
+.invalid-box {
+	background-color: #fcc;
+}
 .notice, .error {
 	background-color: #e2efc0;
 	width: 400px;
@@ -1234,6 +1564,31 @@ a:hover {
 }
 .error {
 	background-color: #fcc;
+}
+.error-message {
+	color: #f00;
+}
+input[type=checkbox], input[type=submit], input[type=button], label {
+	cursor: pointer;
+}
+ul {
+	padding-left: 1em;
+	margin-left: 0;
+	text-align: left;
+}
+.sub-title {
+	font-size: 1.1em;
+}
+.hint {
+	color: #9fab77;
+}
+.perms_table {
+	float: left;
+	margin-left: 70px;
+}
+.perms_main {
+	float: left;
+	margin: 5px 0 10px 20px;
 }
 .list th {
 	text-align: left;
@@ -1310,6 +1665,24 @@ a:hover {
 	padding: 3px 0;
 	margin-top: 50px;
 }
+
+*::-webkit-input-placeholder {
+	color: #bbb;
+}
+*::-moz-placeholder {
+	color: #bbb;
+}
+*:-ms-input-placeholder {
+	color: #bbb;
+}
+
+.perm_spacer {
+	clear: both;
+	border-top: 1px solid #80a218;
+	width: 100px;
+	margin: 20px auto;
+}
+
 </style>
 
 </head>
@@ -1383,18 +1756,25 @@ function tt() {
 		'%d directories' => '%d directories',
 		'1 file' => '1 file',
 		'%d files' => '%d files',
-		'Delete %s ?' => 'Delete %s ?',
-		'Delete %s and %s ?' => 'Delete %s and %s ?',
-		'Deleted %s' => 'Deleted %s',
-		'Deleted %s and %s' => 'Deleted %s and %s',
+		'%s included' => '%s included',
+		'%s and %s included' => '%s and %s included',
+		'Delete %s items?' => 'Delete %s items?',
+		'Deleted %s items' => 'Deleted %s items',
 		'Unable to delete file <br/>%s' => 'Unable to delete file <br/>%s',
 		'Unable to delete directory <br/>%s' => 'Unable to delete directory <br/>%s',
 		'Unable to open directory <br/>%s' => 'Unable to open directory <br/>%s',
-		'Set new permissions for %s' => 'Set new permissions for %s',
-		'Set new permissions for %s and %s' => 'Set new permissions for %s and %s',
-		'New permissions' => 'New permissions',
-		'Example: 755' => 'Example: 755',
+		'Set permissions for' => 'Set permissions for',
+		'Set new permissions for %s items' => 'Set new permissions for %s items',
 		'Set new permissions' => 'Set new permissions',
+		'New permissions for directories' => 'New permissions for directories',
+		'New permissions for files' => 'New permissions for files',
+		'User' => 'User',
+		'Group' => 'Group',
+		'Others' => 'Others',
+		'Blank = Do not set' => 'Blank = Do not set',
+		'<input type="button" name="copy_from_file" value="Copy"><br/>from file perms' => '<input type="button" name="copy_from_file" value="Copy"><br/>from file perms',
+		'<input type="button" name="copy_from_dir" value="Copy"><br/>from directory perms' => '<input type="button" name="copy_from_dir" value="Copy"><br/>from directory perms',
+		'Apply new permissions to sub-directories' => 'Apply new permissions to sub-directories',
 		'Error: Invalid permissions' => 'Error: Invalid permissions',
 		'Unable to set permissions for the directory <br/>%s' => 'Unable to set permissions for the directory <br/>%s',
 		'Unable to set permissions for the file <br/>%s' => 'Unable to set permissions for the file <br/>%s',

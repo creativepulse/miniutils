@@ -1,6 +1,9 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-06-08 - v1.14 ####
+* Upgrade: Upgraded script `file_manager.php` v1.5. Upgraded services for mass deletion and mass permission setting.
+
 #### 2014-05-05 - v1.13 ####
 * Upgrade: Upgraded script `file_manager.php` v1.4. Added ability to delete files and set their permissions.
 
