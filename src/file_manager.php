@@ -3,7 +3,7 @@
 /**
  * File Manager - Mini Utils
  *
- * @version 1.5
+ * @version 1.6
  * @author Creative Pulse
  * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
@@ -43,7 +43,7 @@ class CpMiniUtils_FileManager {
 
 	// system variables - do not edit
 
-	public $version = '1.5';
+	public $version = '1.6';
 	public $path = '';
 
 	public $title = '';
@@ -75,8 +75,15 @@ class CpMiniUtils_FileManager {
 			return '[' . tt('No path specified') . ']';
 		}
 
+		$link_fmt = str_replace('%', '%%', basename(__FILE__)) . '?path=%s';
+		foreach ($_GET as $key => $value) {
+			if ($key != 'path') {
+				$link_fmt .= '&' . str_replace('%', '%%', urlencode($key)) . '=' . str_replace('%', '%%', urlencode($value));
+			}
+		}
+		$link_fmt = '<a href="' . $link_fmt . '">%s</a>';
+
 		$html = '';
-		$link_fmt = '<a href="' . basename(__FILE__) . '?path=%s">%s</a>';
 		$link = '';
 		$previous_link = '';
 
@@ -106,7 +113,7 @@ class CpMiniUtils_FileManager {
 		}
 
 		$this->body .=
-'<div class="breadcrumbs_header">' . tt('Path %s', $html) . '</div>
+'<div class="breadcrumbs-header">' . tt('Path %s', $html) . '</div>
 ';
 	}
 
@@ -122,7 +129,7 @@ class CpMiniUtils_FileManager {
 			$ext = ',' . substr($ext, 1) . ',';
 		}
 
-		if (strpos(',' . $this->image_file_extensions . ',', $ext) !== false) {
+		if ($ext != '' && strpos(',' . $this->image_file_extensions . ',', $ext) !== false) {
 			// show image
 
 			$script_path = preg_replace('~/{2,}~', '/', str_replace('\\', '/', dirname(__FILE__)));
@@ -160,11 +167,11 @@ class CpMiniUtils_FileManager {
 
 			if ($relative_path !== false) {				
 				$this->body .=
-'<div class="show_image"><img src="' . $relative_path . basename($this->path) . '" alt="' . tt('Image out of reach') . '"></div>
+'<div class="show-image"><img src="' . $relative_path . basename($this->path) . '" alt="' . tt('Image out of reach') . '"></div>
 ';
 			}
 		}
-		else if (strpos(',' . $this->text_file_extensions . ',', $ext) !== false) {
+		else if ($ext == '' || strpos(',' . $this->text_file_extensions . ',', $ext) !== false) {
 			// show text file
 
 			if (!is_readable($this->path) && !is_writable($this->path)) {
@@ -198,7 +205,7 @@ class CpMiniUtils_FileManager {
 				}
 
 				$this->body .=
-'<div class="text_editor">
+'<div class="text-editor">
 	<form name="frm" method="post" action="">
 
 		<textarea name="content" rows="30">' . htmlspecialchars($content) . '</textarea>
@@ -569,7 +576,7 @@ class CpMiniUtils_FileManager {
 				$filename = $this->path . '/' . $file;
 				if (file_exists($filename)) {
 					$sel_item_count++;
-					if (is_dir($filename)) {
+					if (is_dir($filename) && !is_link($filename)) {
 						$list_dirs[] = $file;
 						$dirs_count++;
 						$this->list_files_count($filename, $dirs_count, $files_count);
@@ -623,7 +630,7 @@ class CpMiniUtils_FileManager {
 				$filename = $this->path . '/' . $file;
 				if (file_exists($filename)) {
 					$sel_item_count++;
-					if (is_dir($filename)) {
+					if (is_dir($filename) && !is_link($filename)) {
 						$error = $this->list_files_delete_execute($filename, $affected_directories_count, $affected_files_count);
 						if ($error != '') {
 							break;
@@ -800,11 +807,11 @@ class CpMiniUtils_FileManager {
 '		</ul></td></tr></table>
 		<p>' . $this->list_files_get_composite_message('Set new permissions for %s items', $sel_item_count, $dirs_count, $files_count) . '</p>
 
-		<div class="perm_spacer"></div>
+		<div class="perms-spacer"></div>
 
 		<p class="sub-title">' . tt('New permissions for directories') . '</p>
 		' . ($dir_txt_error == '' ? '' : '<p class="error-message">' . $dir_txt_error . '</p>') . '
-		<table class="perms_table">
+		<table class="perms-table">
 			<tr>
 				<td></td>
 				<td>R</td>
@@ -830,7 +837,7 @@ class CpMiniUtils_FileManager {
 				<td><input type="checkbox" name="dir_ox" value="1"></td>
 			</tr>
 		</table>
-		<div class="perms_main">
+		<div class="perms-main">
 			<input type="text" name="dir_txt" value="' . htmlspecialchars($dir_txt) . '" size="5" placeholder="755">
 			<br/><span class="hint">' . tt('Blank = Do not set') . '</span>
 			<br/>
@@ -838,10 +845,10 @@ class CpMiniUtils_FileManager {
 		</div>
 		<div style="clear:both"></div>
 
-		<div class="perm_spacer"></div>
+		<div class="perms-spacer"></div>
 		<p class="sub-title">' . tt('New permissions for files') . '</p>
 		' . ($file_txt_error == '' ? '' : '<p class="error-message">' . $file_txt_error . '</p>') . '
-		<table class="perms_table">
+		<table class="perms-table">
 			<tr>
 				<td></td>
 				<td>R</td>
@@ -867,7 +874,7 @@ class CpMiniUtils_FileManager {
 				<td><input type="checkbox" name="file_ox" value="1"></td>
 			</tr>
 		</table>
-		<div class="perms_main">
+		<div class="perms-main">
 			<input type="text" name="file_txt" value="' . htmlspecialchars($file_txt) . '" size="5" placeholder="644">
 			<br/><span class="hint">' . tt('Blank = Do not set') . '</span>
 			<br/>
@@ -875,7 +882,7 @@ class CpMiniUtils_FileManager {
 		</div>
 		<div style="clear:both"></div>
 
-		<div class="perm_spacer"></div>
+		<div class="perms-spacer"></div>
 		<p><input type="checkbox" id="subdirs" name="subdirs" value="1"' . (empty($_POST['files']) || isset($_POST['subdirs']) ? ' checked' : '') . '> <label for="subdirs">' . tt('Apply new permissions to sub-directories') . '</label></p>
 
 		&nbsp;
@@ -1112,6 +1119,36 @@ for (var i = 0, len = e.length; i < len; i++) {
 		}
 	}
 
+	public function list_files_echo_new_files() {
+		$this->body .= '
+	<script type="text/javascript">
+		function on_create_file(form, caption) {
+			var filename = window.prompt(caption, "");
+			filename = filename == null ? "" : filename.replace(/^\\s+|\\s+$/g, "");
+			if (filename == "") {
+				return false;
+			}
+			else {
+				form.new_filename.value = filename;
+				return true;
+			}
+		}
+	</script>
+
+	<form name="frm_upload" action="" method="post" enctype="multipart/form-data">
+		<input type="hidden" name="new_filename" value="">
+		<div class="ctrl">
+			<input type="submit" name="btn_create_directory" value="' . tt('Create directory') . '" onclick="return on_create_file(this.form, \'' . tt('Directory name') . '\')"' . (is_writable($this->path) ? '' : ' disabled') . '>
+			&nbsp; | &nbsp;
+			<input type="submit" name="btn_create_file" value="' . tt('Create file') . '" onclick="return on_create_file(this.form, \'' . tt('File name') . '\')"' . (is_writable($this->path) ? '' : ' disabled') . '>
+			&nbsp; | &nbsp;
+			' . tt('Upload file') . ': <input type="file" name="file"' . (is_writable($this->path) ? '' : ' disabled') . '>
+			<input type="submit" name="btn_upload" value="' . tt('Upload') . '"' . (is_writable($this->path) ? '' : ' disabled') . '>
+		</div>
+	</form>
+';
+	}
+
 	public function list_files() {
 		$this->show_breadcrumbs_header();
 
@@ -1122,7 +1159,13 @@ for (var i = 0, len = e.length; i < len; i++) {
 			$path .= '/';
 		}
 
+		$script_filename = basename(__FILE__);
+
+		$link_fmt = str_replace('%', '%%', $script_filename) . '?path=%s&sort=%s&order=%s';
+
+
 		// collect fields
+
 		$allowed_columns = array('size', 'sizehuman', 'sizebytes', 'perm', 'permstr', 'permnum', 'ctime', 'ctimets', 'mtime', 'mtimets', 'atime', 'atimets', 'owner', 'ownernum', 'group', 'groupnum');
 		$show_columns = array('type', 'filename');
 		$load_columns = $show_columns;
@@ -1161,7 +1204,95 @@ for (var i = 0, len = e.length; i < len; i++) {
 			}
 		}
 
+		$this->current_sort = (string) @$_GET['sort'];
+		if ($this->current_sort == '' || $this->current_sort == 'type' || !in_array($this->current_sort, $show_columns)) {
+			$this->current_sort = 'filename';
+		}
+
+		$this->current_order = (string) @$_GET['order'];
+		if ($this->current_order != 'asc' && $this->current_order != 'desc') {
+			$this->current_order = 'asc';
+		}
+
+
+		// handle create directory/file
+
+		if (isset($_POST['btn_create_directory']) || isset($_POST['btn_create_file'])) {
+			$error = '';
+			$filename = trim(@$_POST['new_filename']);
+
+			if ($filename == '') {
+				$error = isset($_POST['btn_create_directory']) ? tt('Directory name is not set') :  tt('File name is not set');
+			}
+
+			if ($filename == '.' || $filename == '..') {
+				$error = isset($_POST['btn_create_directory']) ? tt('Invalid directory name') : tt('Invalid file name');
+			}
+
+			if ($error == '') {
+				for ($i = 0, $len = strlen($filename); $i < $len; $i++) {
+					$c = $filename[$i];
+					if ($c == '/' || $c == '\\' || $c == ':' || $c == '*' || $c == '?' || $c == '"' || $c == '<' || $c == '>' || $c == '|' || $c < ' ') {
+						$error = isset($_POST['btn_create_directory'])
+							? tt('Directory name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |')
+							: tt('File name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |');
+						break;
+					}
+				}
+			}
+
+			if ($error == '') {
+				if ($dp = @opendir($this->path)) {
+					while (false !== ($file = readdir($dp))) {
+						if ($file == $filename) {
+							$error = isset($_POST['btn_create_directory']) ? tt('Directory name already exists') : tt('File name already exists');
+							break;
+						}
+					}
+					closedir($dp);
+				}
+				else {
+					$error = tt('Unable to open directory');
+				}
+			}
+
+			if ($error == '') {
+				$filename = $path . $filename;
+				if (isset($_POST['btn_create_directory'])) {
+					if (@mkdir($filename) === false) {
+						$error = tt('Unable to create the new directory');
+					}
+				}
+				else {
+					if (@file_put_contents($filename, '') === false) {
+						$error = tt('Unable to create the new file');
+					}
+				}
+			}
+
+			if ($error == '') {
+				$link = sprintf($link_fmt, urlencode($filename), $this->current_sort, $this->current_order);
+
+				$msg = isset($_POST['btn_create_directory'])
+					? tt('The <a href="%s">new directory</a> was created successfully', $link)
+					: tt('The <a href="%s">new file</a> was created successfully', $link);
+
+				$this->body .=
+'<div class="notice">' . $msg . '</div>
+';
+			}
+			else {
+				$this->body .=
+'<div class="error">' . $error . '</div>
+';
+			}
+
+			$_FILES = array();
+		}
+
+
 		// handle upload
+
 		if (!empty($_FILES['file'])) {
 			$error = '';
 			$upload_tmp_name = (string) @$_FILES['file']['tmp_name'];
@@ -1235,7 +1366,9 @@ for (var i = 0, len = e.length; i < len; i++) {
 			}
 		}
 
+
 		// list files
+
 		if ($dp = @opendir($this->path)) {
 			$all_files = array();
 			while (false !== ($file = readdir($dp))) {
@@ -1262,11 +1395,12 @@ for (var i = 0, len = e.length; i < len; i++) {
 '<div class="notice">' . tt('Directory is empty') . '</div>
 
 <table align="center"><tr><td>
-	<form name="frm_upload" action="" method="post" enctype="multipart/form-data">
-		' . tt('Upload file') . ': <input type="file" name="file"' . (is_writable($this->path) ? '' : ' disabled') . '>
-		<input type="submit" name="btn_upload" value="' . tt('Upload') . '"' . (is_writable($this->path) ? '' : ' disabled') . '>
-	</form>
-</td></tr></table>
+';
+
+				$this->list_files_echo_new_files();
+
+				$this->body .=
+'</td></tr></table>
 ';
 			}
 			else {
@@ -1281,21 +1415,7 @@ for (var i = 0, len = e.length; i < len; i++) {
 					}
 				}
 
-				$this->current_sort = (string) @$_GET['sort'];
-				if ($this->current_sort == '' || $this->current_sort == 'type' || !in_array($this->current_sort, $show_columns)) {
-					$this->current_sort = 'filename';
-				}
-
-				$this->current_order = (string) @$_GET['order'];
-				if ($this->current_order != 'asc' && $this->current_order != 'desc') {
-					$this->current_order = 'asc';
-				}
-
 				usort($all_files, array(get_class($this), 'list_files_cmp'));
-
-				$script_filename = basename(__FILE__);
-
-				$link_fmt = '<a href="' . str_replace('%', '%%', $script_filename) . '?path=%s&sort=%s&order=%s">%s</a>';
 
 				$action_url = $script_filename . '?';
 				foreach ($_GET as $k => $v) {
@@ -1341,7 +1461,7 @@ for (var i = 0, len = e.length; i < len; i++) {
 								}
 							}
 
-							$column_name = sprintf($link_fmt, urlencode($this->path), $column, $order, $column_name . $order_symbol);
+							$column_name = '<a href="' . sprintf($link_fmt, urlencode($this->path), $column, $order) . '">' . $column_name . $order_symbol . '</a>';
 						}
 					}
 
@@ -1360,10 +1480,18 @@ for (var i = 0, len = e.length; i < len; i++) {
 					foreach ($all_files as $file) {
 						if ($file['type'] == $file_type) {
 							$idx++;
+
+							$name = '<a href="' . sprintf($link_fmt, urlencode($file['filename']), $this->current_sort, $this->current_order) . '">' . htmlspecialchars(basename($file['filename'])) . '</a>';
+
+							if (is_link($file['filename'])) {
+								$name .= '
+					<div class="symlink">' . htmlspecialchars(readlink($file['filename'])) . '</div>';
+							}
+
 							$this->body .=
 '			<tr class="' . $file['type'] . '">
 				<td><input type="checkbox" name="cb[]" value="' . htmlspecialchars(basename($file['filename'])) . '" id="cb_' . $idx . '"> <label for="cb_' . $idx . '">[' . tt($file['type']) . ']</label></td>
-				<td>' . sprintf($link_fmt, urlencode($file['filename']), $this->current_sort, $this->current_order, htmlspecialchars(basename($file['filename']))) . '</td>
+				<td>' . $name . '</td>
 ';
 
 							foreach ($show_columns as $column) {
@@ -1391,14 +1519,11 @@ for (var i = 0, len = e.length; i < len; i++) {
 			<input type="submit" name="btn_permissions" id="btn_permissions" value="' . tt('Set permissions') . '" disabled>
 		</div>
 	</form>
+';
 
-	<form name="frm_upload" action="" method="post" enctype="multipart/form-data">
-		<div class="ctrl">
-			' . tt('Upload file') . ': <input type="file" name="file"' . (is_writable($this->path) ? '' : ' disabled') . '>
-			<input type="submit" name="btn_upload" value="' . tt('Upload') . '"' . (is_writable($this->path) ? '' : ' disabled') . '>
-		</div>
-	</form>
+				$this->list_files_echo_new_files();
 
+				$this->body .= '
 </td></tr></table>
 
 <script type="text/javascript">
@@ -1582,11 +1707,17 @@ ul {
 .hint {
 	color: #9fab77;
 }
-.perms_table {
+.perms-spacer {
+	clear: both;
+	border-top: 1px solid #80a218;
+	width: 100px;
+	margin: 20px auto;
+}
+.perms-table {
 	float: left;
 	margin-left: 70px;
 }
-.perms_main {
+.perms-main {
 	float: left;
 	margin: 5px 0 10px 20px;
 }
@@ -1633,28 +1764,32 @@ ul {
 	background-color: #fff;
 	transition: background-color 0s;
 }
+.list .symlink {
+	color: #888;
+	font-size: 0.9em;
+}
 .ctrl {
 	padding: 25px 0 0 0;
 }
 .sz {
 	text-align: right;
 }
-.show_image {
+.show-image {
 	text-align: center;
 	margin-top: 40px;
 }
-.text_editor {
+.text-editor {
 	text-align: center;
 }
-.text_editor input[type=submit] {
+.text-editor input[type=submit] {
 	cursor: pointer;
 }
-.text_editor textarea {
+.text-editor textarea {
 	display: block;
 	width: 98%;
 	margin: 20px auto 20px auto;
 }
-.breadcrumbs_header {
+.breadcrumbs-header {
 	background-color: #eee;
 	text-align: center;
 	padding: 3px 0;
@@ -1674,13 +1809,6 @@ ul {
 }
 *:-ms-input-placeholder {
 	color: #bbb;
-}
-
-.perm_spacer {
-	clear: both;
-	border-top: 1px solid #80a218;
-	width: 100px;
-	margin: 20px auto;
 }
 
 </style>
@@ -1778,6 +1906,24 @@ function tt() {
 		'Error: Invalid permissions' => 'Error: Invalid permissions',
 		'Unable to set permissions for the directory <br/>%s' => 'Unable to set permissions for the directory <br/>%s',
 		'Unable to set permissions for the file <br/>%s' => 'Unable to set permissions for the file <br/>%s',
+
+		// create directory/file
+		'Create directory' => 'Create directory',
+		'Create file' => 'Create file',
+		'File name' => 'File name',
+		'Directory name' => 'Directory name',
+		'Directory name is not set' => 'Directory name is not set',
+		'File name is not set' => 'File name is not set',
+		'Invalid directory name' => 'Invalid directory name',
+		'Invalid file name' => 'Invalid file name',
+		'Directory name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |' => 'Directory name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |',
+		'File name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |' => 'File name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |',
+		'Directory name already exists' => 'Directory name already exists',
+		'File name already exists' => 'File name already exists',
+		'Unable to create the new directory' => 'Unable to create the new directory',
+		'Unable to create the new file' => 'Unable to create the new file',
+		'The <a href="%s">new directory</a> was created successfully' => 'The <a href="%s">new directory</a> was created successfully',
+		'The <a href="%s">new file</a> was created successfully' => 'The <a href="%s">new file</a> was created successfully',
 
 		// file upload
 		'Upload file' => 'Upload file',
