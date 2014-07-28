@@ -1,11 +1,11 @@
 File Manager Manual
 ===================
 
-Upload this script to a site to view and edit files. 
+Upload this script to a site to view, edit, create, delete files. 
 
 Once uploaded access it from your web-browser.
 
-You can use this program to browse and edit files in your web server.
+This is a standalone program designed to work without session variables or cookies.
 
 
 ## 1. Usage

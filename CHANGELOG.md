@@ -1,6 +1,14 @@
 Mini Utils - Changelog
 ======================
 
+#### 2014-07-28 - v1.16 ####
+
+Improvements in File Manager v1.7:
+
+* [New] List: Added functionality to rename files and directories
+* [Modification] Removed all unused action attributes from HTML forms
+* [Modification] Improved detection for invalid file names
+
 #### 2014-07-05 - v1.15 ####
 
 Improvements in File Manager v1.6:

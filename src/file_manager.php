@@ -3,7 +3,7 @@
 /**
  * File Manager - Mini Utils
  *
- * @version 1.6
+ * @version 1.7
  * @author Creative Pulse
  * @copyright Creative Pulse 2014
  * @license http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
@@ -43,7 +43,7 @@ class CpMiniUtils_FileManager {
 
 	// system variables - do not edit
 
-	public $version = '1.6';
+	public $version = '1.7';
 	public $path = '';
 
 	public $title = '';
@@ -67,6 +67,18 @@ class CpMiniUtils_FileManager {
 		}
 
 		return $result;
+	}
+
+	public function validate_filename($filename) {
+		$error = '';
+		for ($i = 0, $len = strlen($filename); $i < $len; $i++) {
+			$c = $filename[$i];
+			if ($c == '/' || $c == '\\' || $c == ':' || $c == '*' || $c == '?' || $c == '"' || $c == '<' || $c == '>' || $c == '|' || $c < ' ') {
+				$error = tt('File/directory names cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |');
+				break;
+			}
+		}
+		return $error;
 	}
 
 	public function show_breadcrumbs_header() {
@@ -206,7 +218,7 @@ class CpMiniUtils_FileManager {
 
 				$this->body .=
 '<div class="text-editor">
-	<form name="frm" method="post" action="">
+	<form name="frm" method="post">
 
 		<textarea name="content" rows="30">' . htmlspecialchars($content) . '</textarea>
 
@@ -491,6 +503,179 @@ class CpMiniUtils_FileManager {
 		}
 	}
 
+	public function list_files_rename($return_url) {
+		if (empty($_POST['cb']) && empty($_POST['files'])) {
+			$this->body .=
+'<div class="error">
+	<p>' . tt('No files selected') . '</p>
+	<p>' . tt('Go back to the <a href="%s">file list</a>', htmlspecialchars($return_url)) . '</p>
+</div>
+';
+			return;
+		}
+
+		$all_files = array();
+		$dp = opendir($this->path);
+		while (false !== ($file = readdir($dp))) {
+			if ($file != '.' && $file != '..') {
+				$all_files[] = $file;
+			}
+		}
+		closedir($dp);
+		sort($all_files);
+
+		if (!empty($_POST['all_files_signature']) && $_POST['all_files_signature'] != md5(implode('/', $all_files))) {
+			$this->body .=
+'<div class="error">
+	<p>' . tt('Contents of directory changed') . '</p>
+	<p>' . tt('Go back to the <a href="%s">file list</a>', htmlspecialchars($return_url)) . '</p>
+</div>
+';
+			return;
+		}
+
+		$all_files_exist = true;
+		$files = !empty($_POST['cb']) ? $_POST['cb'] : explode('/', $_POST['files']);
+		foreach ($files as $file) {
+			if (!file_exists($this->path . '/' . $file) || array_search($file, $all_files) === false) {
+				$all_files_exist = false;
+				break;
+			}
+		}
+
+		if (!$all_files_exist) {
+			$this->body .=
+'<div class="error">
+	<p>' . tt('Some files marked for rename do not exist any more') . '</p>
+	<p>' . tt('Go back to the <a href="%s">file list</a>', htmlspecialchars($return_url)) . '</p>
+</div>
+';
+			return;
+		}
+
+		if (!empty($_POST['cb'])) {
+			// show rename dialog
+
+			$list_dirs = array();
+			$list_files = array();
+			foreach ($files as $file) {
+				if (is_dir($this->path . '/' . $file)) {
+					$list_dirs[] = $file;
+				}
+				else {
+					$list_files[] = $file;
+				}
+			}
+
+			$this->body .=
+'<form name="frm" method="post">
+	<input type="hidden" name="all_files_signature" value="' . md5(implode('/', $all_files)) . '">
+	<input type="hidden" name="files" value="' . htmlspecialchars(implode('/', $files)) . '">
+	<div class="notice">
+		<p>' . tt('Rename') . '</p>
+		<table align="center" cellspacing="7">
+			<tr>
+				<td>&nbsp;</td>
+				<th>' . tt('Old name') . '</th>
+				<th>' . tt('New name') . '</th>
+			</tr>
+';
+
+			sort($list_dirs);
+			foreach ($list_dirs as $file) {
+				$txt_name = 'rename_' . array_search($file, $all_files);
+				$this->body .=
+'			<tr>
+				<td>[' . tt('dir') . ']</td>
+				<td>' . htmlspecialchars($file) . '</td>
+				<td><input type="text" name="' . $txt_name . '" value="' . htmlspecialchars(isset($_POST[$txt_name]) ? $_POST[$txt_name] : $file) . '"></td>
+			</tr>
+';
+			}
+
+			sort($list_files);
+			foreach ($list_files as $file) {
+				$txt_name = 'rename_' . array_search($file, $all_files);
+				$this->body .=
+'			<tr>
+				<td>[' . tt('file') . ']</td>
+				<td>' . htmlspecialchars($file) . '</td>
+				<td><input type="text" name="' . $txt_name . '" value="' . htmlspecialchars(isset($_POST[$txt_name]) ? $_POST[$txt_name] : $file) . '"></td>
+			</tr>
+';
+			}
+
+			$this->body .=
+'		</table>
+		<p><input type="button" name="btn_cancel" value="' . tt('Cancel') . '" onclick="window.location=\'' . htmlspecialchars($return_url) . '\'">
+			&nbsp; &nbsp; <input type="submit" name="btn_rename" value="' . tt('Rename') . '"></p>
+	</div>
+</form>
+';
+		}
+		else {
+			$error = '';
+
+			// test rename directories and files
+			$test_files = $all_files;
+			foreach ($_POST as $i_all_files => $new_filename) {
+				if (substr($i_all_files, 0, 7) == 'rename_') {
+					$error = $this->validate_filename($new_filename);
+					if ($error != '') {
+						break;
+					}
+
+					if (array_search($new_filename, $test_files) !== false) {
+						$error = tt('File &quot;%s&quot; already exists. No files were renamed.', htmlspecialchars($new_filename));
+						break;
+					}
+
+					$src_file = $all_files[intval(substr($i_all_files, 7))];
+					$i_test_files = array_search($src_file, $test_files);
+					if ($i_test_files === false) {
+						$error = tt('Unable to find file &quot;%s&quot;. No files were renamed.', htmlspecialchars($src_file));
+						break;
+					}
+
+					$test_files[$i_test_files] = $new_filename;
+				}
+			}
+
+			// rename directories and files
+			if ($error == '') {
+				$count = 0;
+				foreach ($_POST as $i_all_files => $new_filename) {
+					if (substr($i_all_files, 0, 7) == 'rename_') {
+						$count++;
+						$src_file = $this->path . '/' . $all_files[intval(substr($i_all_files, 7))];
+						$trg_file = $this->path . '/' . $new_filename;
+						if (!@rename($src_file, $trg_file)) {
+							$error = tt('File system error while trying to rename &quot;%s&quot; to &quot;%s&quot;.', htmlspecialchars($src_file), htmlspecialchars($trg_file));
+							break;
+						}
+					}
+				}
+			}
+
+			if ($error == '') {
+				$this->body .=
+'<div class="notice">
+	<p>' . tt('Renamed %s files', $count) . '</p>
+	<p>' . tt('Go back to the <a href="%s">file list</a>', $return_url) . '</p>
+</div>
+';
+			}
+			else {
+				$this->body .=
+'<div class="error">
+	<p>' . $error . '</p>
+	<p>' . tt('Go back to the <a href="%s">file list</a>', htmlspecialchars($return_url)) . '</p>
+</div>
+';
+			}
+		}
+	}
+
 	public function list_files_delete_execute($dir, &$affected_directories_count, &$affected_files_count) {
 		$error = '';
 
@@ -589,7 +774,7 @@ class CpMiniUtils_FileManager {
 			}
 
 			$this->body .=
-'<form name="frm" method="post" action="">
+'<form name="frm" method="post">
 	<input type="hidden" name="files" value="' . htmlspecialchars(implode('/', $files)) . '">
 	<div class="notice">
 		<p>' . tt('Delete') . ':</p>
@@ -782,7 +967,7 @@ class CpMiniUtils_FileManager {
 			}
 
 			$this->body .=
-'<form name="frm" method="post" action="">
+'<form name="frm" method="post">
 	<input type="hidden" name="files" value="' . htmlspecialchars(implode('/', $files)) . '">
 	<div class="notice">
 		<p>' . tt('Set permissions for') . ':</p>
@@ -1043,10 +1228,13 @@ for (var i = 0, len = e.length; i < len; i++) {
 		}
 		$return_url = basename(__FILE__) . $return_url;
 
-		if (isset($_POST['btn_delete']) || isset($_POST['hfrm_delete'])) {
+		if (isset($_POST['btn_rename'])) {
+			$this->list_files_rename($return_url);
+		}
+		else if (isset($_POST['btn_delete'])) {
 			$this->list_files_delete($return_url);
 		}
-		else if (isset($_POST['btn_permissions']) || isset($_POST['hfrm_set_permissions'])) {
+		else if (isset($_POST['btn_permissions'])) {
 			$this->list_files_permissions($return_url);
 		}
 		else {
@@ -1135,7 +1323,7 @@ for (var i = 0, len = e.length; i < len; i++) {
 		}
 	</script>
 
-	<form name="frm_upload" action="" method="post" enctype="multipart/form-data">
+	<form name="frm_upload" method="post" enctype="multipart/form-data">
 		<input type="hidden" name="new_filename" value="">
 		<div class="ctrl">
 			<input type="submit" name="btn_create_directory" value="' . tt('Create directory') . '" onclick="return on_create_file(this.form, \'' . tt('Directory name') . '\')"' . (is_writable($this->path) ? '' : ' disabled') . '>
@@ -1230,15 +1418,7 @@ for (var i = 0, len = e.length; i < len; i++) {
 			}
 
 			if ($error == '') {
-				for ($i = 0, $len = strlen($filename); $i < $len; $i++) {
-					$c = $filename[$i];
-					if ($c == '/' || $c == '\\' || $c == ':' || $c == '*' || $c == '?' || $c == '"' || $c == '<' || $c == '>' || $c == '|' || $c < ' ') {
-						$error = isset($_POST['btn_create_directory'])
-							? tt('Directory name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |')
-							: tt('File name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |');
-						break;
-					}
-				}
+				$error = $this->validate_filename($filename);
 			}
 
 			if ($error == '') {
@@ -1515,6 +1695,7 @@ for (var i = 0, len = e.length; i < len; i++) {
 
 		<div class="ctrl">
 			' . tt('Selection actions') . ':
+			<input type="submit" name="btn_rename" id="btn_rename" value="' . tt('Rename') . '" disabled>
 			<input type="submit" name="btn_delete" id="btn_delete" value="' . tt('Delete') . '" disabled>
 			<input type="submit" name="btn_permissions" id="btn_permissions" value="' . tt('Set permissions') . '" disabled>
 		</div>
@@ -1540,6 +1721,7 @@ for (var i = 0, len = elements.length; i < len; i++) {
 					for (var i = 0, len = document.cbs.length; i < len; i++) {
 						document.cbs[i].checked = this.checked;
 					}
+					document.getElementById("btn_rename").disabled = !this.checked;
 					document.getElementById("btn_delete").disabled = !this.checked;
 					document.getElementById("btn_permissions").disabled = !this.checked;
 					document.cbs_autoset = false;
@@ -1562,6 +1744,7 @@ for (var i = 0, len = elements.length; i < len; i++) {
 
 					document.cbs_autoset = true;
 					document.getElementById("cb_all").checked = checked_count > 0 && unchecked_count == 0;
+					document.getElementById("btn_rename").disabled = checked_count == 0;
 					document.getElementById("btn_delete").disabled = checked_count == 0;
 					document.getElementById("btn_permissions").disabled = checked_count == 0;
 					document.cbs_autoset = false;
@@ -1874,6 +2057,7 @@ function tt() {
 
 		// files list action
 		'Cancel' => 'Cancel',
+		'Rename' => 'Rename',
 		'Delete' => 'Delete',
 		'Set permissions' => 'Set permissions',
 		'Go back to the <a href="%s">file list</a>' => 'Go back to the <a href="%s">file list</a>',
@@ -1906,6 +2090,14 @@ function tt() {
 		'Error: Invalid permissions' => 'Error: Invalid permissions',
 		'Unable to set permissions for the directory <br/>%s' => 'Unable to set permissions for the directory <br/>%s',
 		'Unable to set permissions for the file <br/>%s' => 'Unable to set permissions for the file <br/>%s',
+		'Old name' => 'Old name',
+		'New name' => 'New name',
+		'Contents of directory changed' => 'Contents of directory changed',
+		'Some files marked for rename do not exist any more' => 'Some files marked for rename do not exist any more',
+		'File &quot;%s&quot; already exists. No files were renamed.' => 'File &quot;%s&quot; already exists. No files were renamed.',
+		'Unable to find file &quot;%s&quot;. No files were renamed.' => 'Unable to find file &quot;%s&quot;. No files were renamed.',
+		'File system error while trying to rename &quot;%s&quot; to &quot;%s&quot;.' => 'File system error while trying to rename &quot;%s&quot; to &quot;%s&quot;.',
+		'Renamed %s files' => 'Renamed %s files',
 
 		// create directory/file
 		'Create directory' => 'Create directory',
@@ -1916,8 +2108,7 @@ function tt() {
 		'File name is not set' => 'File name is not set',
 		'Invalid directory name' => 'Invalid directory name',
 		'Invalid file name' => 'Invalid file name',
-		'Directory name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |' => 'Directory name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |',
-		'File name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |' => 'File name cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |',
+		'File/Directory names cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |' => 'File/Directory names cannot contain control characters or: <br/>/ \\ : * ? &quot; &lt; &gt; |',
 		'Directory name already exists' => 'Directory name already exists',
 		'File name already exists' => 'File name already exists',
 		'Unable to create the new directory' => 'Unable to create the new directory',
